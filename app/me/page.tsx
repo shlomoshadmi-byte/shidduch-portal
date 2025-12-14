@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
 type IntakeForm = {
@@ -21,7 +21,7 @@ type IntakeForm = {
 
   preferred_communication: string[] | null;
 
-  Contact_Name: string | null; // note capital C/N in your schema
+  Contact_Name: string | null;
   my_primary_language: string | null;
   my_other_languages: string | null;
 
@@ -61,14 +61,103 @@ function textToArr(s: string) {
   return items.length ? items : [];
 }
 
+function Input({
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: "text" | "date";
+}) {
+  return (
+    <label style={{ display: "block", marginTop: 12 }}>
+      <div style={{ fontSize: 12, marginBottom: 4 }}>{label}</div>
+      <input
+        spellCheck={false}
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          width: "100%",
+          padding: 8,
+          border: "1px solid #ccc",
+          boxSizing: "border-box",
+          lineHeight: "20px",
+        }}
+      />
+    </label>
+  );
+}
+
+function TextArea({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <label style={{ display: "block", marginTop: 12 }}>
+      <div style={{ fontSize: 12, marginBottom: 4 }}>{label}</div>
+      <textarea
+        spellCheck={false}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{
+          width: "100%",
+          padding: 8,
+          border: "1px solid #ccc",
+          minHeight: 70,
+          boxSizing: "border-box",
+          lineHeight: "20px",
+        }}
+      />
+    </label>
+  );
+}
+
+function ArrayField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
+  return (
+    <TextArea
+      label={`${label} (comma-separated)`}
+      value={arrToText(value)}
+      onChange={(txt) => onChange(textToArr(txt))}
+      placeholder="e.g. English, Hebrew"
+    />
+  );
+}
+
 export default function MePage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
+
+  const BASE_URL = useMemo(
+    () => process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.shidduch-gmach.org",
+    []
+  );
 
   const [loading, setLoading] = useState(true);
   const [row, setRow] = useState<IntakeForm | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function run() {
@@ -131,74 +220,7 @@ export default function MePage() {
     }
 
     run();
-  }, [id]);
-
-  function Input({
-    label,
-    value,
-    onChange,
-    type = "text",
-  }: {
-    label: string;
-    value: string;
-    onChange: (v: string) => void;
-    type?: "text" | "date";
-  }) {
-    return (
-      <label style={{ display: "block", marginTop: 12 }}>
-        <div style={{ fontSize: 12, marginBottom: 4 }}>{label}</div>
-        <input
-          type={type}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          style={{ width: "100%", padding: 8, border: "1px solid #ccc" }}
-        />
-      </label>
-    );
-  }
-
-  function TextArea({
-    label,
-    value,
-    onChange,
-    placeholder,
-  }: {
-    label: string;
-    value: string;
-    onChange: (v: string) => void;
-    placeholder?: string;
-  }) {
-    return (
-      <label style={{ display: "block", marginTop: 12 }}>
-        <div style={{ fontSize: 12, marginBottom: 4 }}>{label}</div>
-        <textarea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          style={{ width: "100%", padding: 8, border: "1px solid #ccc", minHeight: 70 }}
-        />
-      </label>
-    );
-  }
-
-  function ArrayField({
-    label,
-    value,
-    onChange,
-  }: {
-    label: string;
-    value: string[];
-    onChange: (v: string[]) => void;
-  }) {
-    return (
-      <TextArea
-        label={`${label} (comma-separated)`}
-        value={arrToText(value)}
-        onChange={(txt) => onChange(textToArr(txt))}
-        placeholder="e.g. English, Hebrew"
-      />
-    );
-  }
+  }, [id, BASE_URL]);
 
   if (loading) return <div style={{ padding: 16 }}>Loading…</div>;
   if (error) return <pre style={{ padding: 16, color: "red" }}>{error}</pre>;
@@ -230,21 +252,9 @@ export default function MePage() {
       />
 
       {/* More personal */}
-      <Input
-        label="Contact name"
-        value={row.Contact_Name ?? ""}
-        onChange={(v) => setRow({ ...row, Contact_Name: v })}
-      />
-      <Input
-        label="My primary language"
-        value={row.my_primary_language ?? ""}
-        onChange={(v) => setRow({ ...row, my_primary_language: v })}
-      />
-      <Input
-        label="My other languages (text)"
-        value={row.my_other_languages ?? ""}
-        onChange={(v) => setRow({ ...row, my_other_languages: v })}
-      />
+      <Input label="Contact name" value={row.Contact_Name ?? ""} onChange={(v) => setRow({ ...row, Contact_Name: v })} />
+      <Input label="My primary language" value={row.my_primary_language ?? ""} onChange={(v) => setRow({ ...row, my_primary_language: v })} />
+      <Input label="My other languages (text)" value={row.my_other_languages ?? ""} onChange={(v) => setRow({ ...row, my_other_languages: v })} />
       <Input label="Gender" value={row.gender ?? ""} onChange={(v) => setRow({ ...row, gender: v })} />
       <Input label="Height" value={row.height ?? ""} onChange={(v) => setRow({ ...row, height: v })} />
 
@@ -259,26 +269,10 @@ export default function MePage() {
 
       {/* Their preferences */}
       <Input label="Their occupation" value={row.their_occupation ?? ""} onChange={(v) => setRow({ ...row, their_occupation: v })} />
-      <ArrayField
-        label="Their community"
-        value={row.their_community ?? []}
-        onChange={(v) => setRow({ ...row, their_community: v })}
-      />
-      <Input
-        label="Their primary language"
-        value={row.their_primary_language ?? ""}
-        onChange={(v) => setRow({ ...row, their_primary_language: v })}
-      />
-      <ArrayField
-        label="Their additional languages"
-        value={row.their_addittional_languages ?? []}
-        onChange={(v) => setRow({ ...row, their_addittional_languages: v })}
-      />
-      <ArrayField
-        label="Their status"
-        value={row.their_status ?? []}
-        onChange={(v) => setRow({ ...row, their_status: v })}
-      />
+      <ArrayField label="Their community" value={row.their_community ?? []} onChange={(v) => setRow({ ...row, their_community: v })} />
+      <Input label="Their primary language" value={row.their_primary_language ?? ""} onChange={(v) => setRow({ ...row, their_primary_language: v })} />
+      <ArrayField label="Their additional languages" value={row.their_addittional_languages ?? []} onChange={(v) => setRow({ ...row, their_addittional_languages: v })} />
+      <ArrayField label="Their status" value={row.their_status ?? []} onChange={(v) => setRow({ ...row, their_status: v })} />
 
       {/* Long text */}
       <TextArea label="About me" value={row.about_me ?? ""} onChange={(v) => setRow({ ...row, about_me: v })} />
@@ -286,81 +280,84 @@ export default function MePage() {
       <TextArea label="References" value={row.references ?? ""} onChange={(v) => setRow({ ...row, references: v })} />
 
       {/* Arrays */}
-      <ArrayField
-        label="My additional languages"
-        value={row.my_addittional_languages ?? []}
-        onChange={(v) => setRow({ ...row, my_addittional_languages: v })}
-      />
+      <ArrayField label="My additional languages" value={row.my_addittional_languages ?? []} onChange={(v) => setRow({ ...row, my_addittional_languages: v })} />
 
-      <button
-        type="button"
-        disabled={saving}
-        style={{
-          marginTop: 16,
-          padding: "8px 14px",
-          border: "1px solid black",
-          background: "#fff",
-          cursor: "pointer",
-        }}
-        onClick={async () => {
-          setError(null);
-          setSaving(true);
+      <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+        <button
+          type="button"
+          disabled={saving}
+          style={{ padding: "8px 14px", border: "1px solid black", background: "#fff", cursor: "pointer" }}
+          onClick={async () => {
+            setError(null);
+            setSaving(true);
 
-          const { error } = await supabase
-            .from("intake_forms")
-            .update({
-              first_name: row.first_name,
-              surname: row.surname,
-              fathers_name: row.fathers_name,
-              mothers_name: row.mothers_name,
-              date_of_birth: row.date_of_birth,
-              city: row.city,
-              country: row.country,
-              phone: row.phone,
-              email: row.email,
+            const { error } = await supabase
+              .from("intake_forms")
+              .update({
+                first_name: row.first_name,
+                surname: row.surname,
+                fathers_name: row.fathers_name,
+                mothers_name: row.mothers_name,
+                date_of_birth: row.date_of_birth,
+                city: row.city,
+                country: row.country,
+                phone: row.phone,
+                email: row.email,
+                preferred_communication: row.preferred_communication,
+                "Contact_Name": row.Contact_Name,
+                my_primary_language: row.my_primary_language,
+                my_other_languages: row.my_other_languages,
+                gender: row.gender,
+                height: row.height,
+                my_community: row.my_community,
+                my_community_other: row.my_community_other,
+                my_status: row.my_status,
+                children: row.children,
+                my_occupation: row.my_occupation,
+                my_job: row.my_job,
+                yeshiva_seminar: row.yeshiva_seminar,
+                their_occupation: row.their_occupation,
+                their_community: row.their_community,
+                their_primary_language: row.their_primary_language,
+                their_addittional_languages: row.their_addittional_languages,
+                their_status: row.their_status,
+                about_me: row.about_me,
+                about_them: row.about_them,
+                references: row.references,
+                my_addittional_languages: row.my_addittional_languages,
+              })
+              .eq("id", row.id);
 
-              preferred_communication: row.preferred_communication,
+            setSaving(false);
 
-              // capital column name must be quoted in JS object
-              "Contact_Name": row.Contact_Name,
+            if (error) setError(error.message);
+            else alert("Saved ✅");
+          }}
+        >
+          {saving ? "Saving..." : "Save changes"}
+        </button>
 
-              my_primary_language: row.my_primary_language,
-              my_other_languages: row.my_other_languages,
+        <button
+          type="button"
+          disabled={deleting}
+          style={{ padding: "8px 14px", border: "1px solid black", background: "#fff", cursor: "pointer" }}
+          onClick={async () => {
+            if (!confirm("Hard delete this submission? This cannot be undone.")) return;
 
-              gender: row.gender,
-              height: row.height,
+            setError(null);
+            setDeleting(true);
 
-              my_community: row.my_community,
-              my_community_other: row.my_community_other,
-              my_status: row.my_status,
-              children: row.children,
+            const { error } = await supabase.from("intake_forms").delete().eq("id", row.id);
 
-              my_occupation: row.my_occupation,
-              my_job: row.my_job,
-              yeshiva_seminar: row.yeshiva_seminar,
+            setDeleting(false);
 
-              their_occupation: row.their_occupation,
-              their_community: row.their_community,
-              their_primary_language: row.their_primary_language,
-              their_addittional_languages: row.their_addittional_languages,
-              their_status: row.their_status,
-
-              about_me: row.about_me,
-              about_them: row.about_them,
-              references: row.references,
-
-              my_addittional_languages: row.my_addittional_languages,
-            })
-            .eq("id", row.id);
-
-          setSaving(false);
-
-          if (error) setError(error.message);
-          else alert("Saved ✅");
-        }}
-      >
-        {saving ? "Saving..." : "Save changes"}
-      </button>
+            if (error) setError(error.message);
+            else router.replace("/"); // or router.replace("/me") if you later add a list page
+          }}
+        >
+          {deleting ? "Deleting..." : "Hard delete"}
+        </button>
+      </div>
     </div>
   );
 }

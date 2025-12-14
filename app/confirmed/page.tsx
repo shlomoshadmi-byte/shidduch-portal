@@ -1,8 +1,9 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function ConfirmedPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
 
@@ -20,19 +21,19 @@ export default function ConfirmedPage() {
       <h1>✅ Submission confirmed</h1>
       <p>Your submission is now linked to your account.</p>
 
-      <a
-        href={`/me?id=${encodeURIComponent(id)}`}
+      <button
+        type="button"
+        onClick={() => router.push(`/me?id=${encodeURIComponent(id)}`)}
         style={{
-          display: "inline-block",
           marginTop: 16,
           padding: "10px 16px",
           border: "1px solid black",
-          textDecoration: "none",
           background: "white",
+          cursor: "pointer",
         }}
       >
         Manage / edit my submission
-      </a>
+      </button>
     </main>
   );
 }

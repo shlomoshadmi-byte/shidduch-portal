@@ -1,28 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
 export default function ClaimPage() {
   const [message, setMessage] = useState("Working…");
+  const router = useRouter();
 
   useEffect(() => {
     const run = async () => {
-      // Ensure session from magic link is available
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
         setMessage("Not logged in yet. Please click the magic link again.");
         return;
       }
 
-      // Read token from query string
       const url = new URL(window.location.href);
       const rawToken = url.searchParams.get("token");
-
-      // Guard against malformed token
       const token = rawToken ? rawToken.replace(/ /g, "+") : null;
 
       if (!token || token === "undefined") {
@@ -30,14 +26,15 @@ export default function ClaimPage() {
         return;
       }
 
-      // Claim the profile AND get the row id
-      const { data: claimedId, error } = await supabase.rpc(
-        "claim_profile_id",
-        { token }
-      );
+      const { data: claimedId, error } = await supabase.rpc("claim_profile_id", { token });
 
       if (error) {
-        setMessage(`Claim failed: ${error.message}`);
+        const msg = (error.message || "").toLowerCase();
+        if (msg.includes("already") || msg.includes("used")) {
+          setMessage("This submission was already confirmed ✅");
+        } else {
+          setMessage(`Claim failed: ${error.message}`);
+        }
         return;
       }
 
@@ -46,13 +43,11 @@ export default function ClaimPage() {
         return;
       }
 
-      // Redirect to manage THIS submission
-      window.location.href = `/confirmed?id=${encodeURIComponent(claimedId)}`;
-
+      router.replace(`/confirmed?id=${encodeURIComponent(claimedId)}`);
     };
 
     run();
-  }, []);
+  }, [router]);
 
   return (
     <main style={{ padding: 24, fontFamily: "sans-serif" }}>

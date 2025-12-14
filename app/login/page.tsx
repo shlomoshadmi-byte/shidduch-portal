@@ -4,9 +4,13 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
+const BASE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.shidduch-gmach.org";
+
 export default function LoginPage() {
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "/me";
+  const safeNext = next.startsWith("/") ? next : "/me";
 
   const [email, setEmail] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -37,8 +41,8 @@ export default function LoginPage() {
           const { error } = await supabase.auth.signInWithOtp({
             email,
             options: {
-              emailRedirectTo: `http://localhost:3000/auth/finish?next=${encodeURIComponent(
-                next
+              emailRedirectTo: `${BASE_URL}/auth/finish?next=${encodeURIComponent(
+                safeNext
               )}`,
             },
           });

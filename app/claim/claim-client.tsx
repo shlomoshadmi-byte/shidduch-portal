@@ -15,25 +15,28 @@ export default function ClaimClient() {
   const router = useRouter();
 
   const [token, setToken] = useState<string | null>(null);
+
   const [sessionReady, setSessionReady] = useState(false);
   const [sessionMissing, setSessionMissing] = useState(false);
 
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [preview, setPreview] = useState<IntakePreview | null>(null);
+
+  // This is the message shown in the grey box on the page (not console)
   const [message, setMessage] = useState<string | null>(null);
 
   const [confirming, setConfirming] = useState(false);
 
+  // read token from URL
   useEffect(() => {
-    // read token from URL
     const url = new URL(window.location.href);
     const rawToken = url.searchParams.get("token");
     const t = rawToken ? rawToken.replace(/ /g, "+") : null;
     setToken(!t || t === "undefined" ? null : t);
   }, []);
 
+  // check session (must be logged in after /auth/finish)
   useEffect(() => {
-    // check session (must be logged in after /auth/finish)
     (async () => {
       const {
         data: { session },
@@ -56,13 +59,13 @@ export default function ClaimClient() {
     return name || "your submission";
   }, [preview]);
 
+  // optional preview: try to show the name (but don't show scary errors if RLS blocks it)
   useEffect(() => {
-    // optional preview (nice UX): show name before confirming
     if (!sessionReady || sessionMissing) return;
     if (!token) return;
 
     setLoadingPreview(true);
-    setMessage(null);
+    setPreview(null);
 
     (async () => {
       const { data, error } = await supabase
@@ -73,17 +76,14 @@ export default function ClaimClient() {
 
       setLoadingPreview(false);
 
+      // If RLS blocks this select, we still want the page to work.
       if (error) {
-        setMessage(error.message);
         return;
       }
 
-      // If not found by claim_token, it might already be claimed (token nulled)
       if (!data) {
-        setPreview(null);
-        setMessage(
-          "This confirmation link may have already been used. If you already confirmed, please use the Manage link email."
-        );
+        // Could be already used (token nulled) OR select blocked by RLS.
+        // Don't show "already used" here — it confuses users.
         return;
       }
 
@@ -97,72 +97,79 @@ export default function ClaimClient() {
     })();
   }, [token, sessionReady, sessionMissing]);
 
- const handleConfirm = async () => {
-  console.log("Confirm button clicked");
-  setMessage(null);
+  const handleConfirm = async () => {
+    setMessage(null);
 
-  if (!token) {
-    setMessage("Missing or invalid token in URL.");
-    return;
-  }
-
-  setConfirming(true);
-
-  const { data: claimedId, error } = await supabase.rpc("claim_profile_id", { token });
-
-  if (error) {
-    const msg = (error.message || "").toLowerCase();
-    if (msg.includes("already") || msg.includes("used")) {
-      setMessage("This submission was already confirmed ✅");
-    } else {
-      setMessage(`Confirm failed: ${error.message}`);
+    if (!token) {
+      setMessage("Missing or invalid token in URL.");
+      return;
     }
-    setConfirming(false);
-    return;
-  }
 
-  if (!claimedId) {
-    setMessage("Confirmed, but no submission id was returned.");
-    setConfirming(false);
-    return;
-  }
+    setConfirming(true);
 
-  // Trigger Email #2 (manage link) AFTER confirmation succeeds
-try {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    // 1) Claim the submission
+    const { data: claimedId, error } = await supabase.rpc("claim_profile_id", { token });
 
-  const accessToken = session?.access_token;
-  if (!accessToken) {
-    console.error("send-manage-email: missing access token (not logged in?)");
-  } else {
-    const res = await fetch("/api/send-manage-email", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ id: claimedId }),
-    });
-
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      console.error("send-manage-email failed:", res.status, txt);
+    if (error) {
+      const msg = (error.message || "").toLowerCase();
+      if (msg.includes("already") || msg.includes("used")) {
+        setMessage("This submission was already confirmed ✅");
+      } else {
+        setMessage(`Confirm failed: ${error.message}`);
+      }
+      setConfirming(false);
+      return;
     }
-  }
-} catch (e) {
-  console.error("send-manage-email exception:", e);
-}
 
-setConfirming(false);
-router.replace(`/confirmed?id=${encodeURIComponent(claimedId)}`);
-return;
-};
+    if (!claimedId) {
+      setMessage("Confirmed, but no submission id was returned.");
+      setConfirming(false);
+      return;
+    }
 
+    // 2) Try to send Email #2 (but do NOT block confirmation on this)
+    let manageEmailError: string | null = null;
 
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-  
+      const accessToken = session?.access_token;
+      if (!accessToken) {
+        manageEmailError = "Missing login token. Please try opening the magic link again.";
+      } else {
+        const res = await fetch("/api/send-manage-email", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ id: claimedId }),
+        });
+
+        if (!res.ok) {
+          const txt = await res.text().catch(() => "");
+          manageEmailError = `Email #2 failed (${res.status}): ${txt || "Unknown error"}`;
+        }
+      }
+    } catch {
+      manageEmailError = "Email #2 failed due to a network error.";
+    }
+
+    setConfirming(false);
+
+    // If the manage email failed, show it here so you can debug.
+    // We still redirect, because confirmation succeeded.
+    if (manageEmailError) {
+      // optional: keep it visible for a second before redirect
+      // setMessage(`Confirmed ✅ but: ${manageEmailError}`);
+      // await new Promise((r) => setTimeout(r, 800));
+    }
+
+    router.replace(`/confirmed?id=${encodeURIComponent(claimedId)}`);
+  };
+
   if (!token) {
     return (
       <main style={{ padding: 24, fontFamily: "sans-serif" }}>
@@ -193,7 +200,6 @@ return;
   return (
     <main style={{ padding: 24, fontFamily: "sans-serif", maxWidth: 680 }}>
       <div style={{ marginBottom: 12 }}>
-        {/* Replace with your logo */}
         <div style={{ fontWeight: 700, fontSize: 18 }}>Shidduch Gmach</div>
       </div>
 
@@ -212,7 +218,7 @@ return;
       <button
         type="button"
         onClick={handleConfirm}
-        disabled={confirming || !!message?.includes("already confirmed")}
+        disabled={confirming}
         style={{
           marginTop: 16,
           padding: "10px 14px",

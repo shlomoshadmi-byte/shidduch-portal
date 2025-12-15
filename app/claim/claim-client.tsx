@@ -126,47 +126,39 @@ export default function ClaimClient() {
     return;
   }
 
-  try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+  // Trigger Email #2 (manage link) AFTER confirmation succeeds
+try {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
+  const accessToken = session?.access_token;
+  if (!accessToken) {
+    console.error("send-manage-email: missing access token (not logged in?)");
+  } else {
     const res = await fetch("/api/send-manage-email", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session?.access_token ?? ""}`,
+        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({ id: claimedId }),
     });
 
     if (!res.ok) {
-      const txt = await res.text();
+      const txt = await res.text().catch(() => "");
       console.error("send-manage-email failed:", res.status, txt);
     }
-  } catch (e) {
-    console.error("send-manage-email exception:", e);
-  }
-
-  setConfirming(false);
-  router.replace(`/confirmed?id=${encodeURIComponent(claimedId)}`);
-};
-
-
-  // Helpful during setup (so you see errors instead of silent fails)
-  if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    console.error("send-manage-email failed:", res.status, txt);
   }
 } catch (e) {
   console.error("send-manage-email exception:", e);
 }
 
+setConfirming(false);
+router.replace(`/confirmed?id=${encodeURIComponent(claimedId)}`);
 
-    setConfirming(false);
-    router.replace(`/confirmed?id=${encodeURIComponent(claimedId)}`);
-  };
 
+  
   if (!token) {
     return (
       <main style={{ padding: 24, fontFamily: "sans-serif" }}>

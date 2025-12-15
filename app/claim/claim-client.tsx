@@ -156,6 +156,9 @@ try {
 
 setConfirming(false);
 router.replace(`/confirmed?id=${encodeURIComponent(claimedId)}`);
+return;
+};
+
 
 
   

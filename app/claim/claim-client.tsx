@@ -98,49 +98,62 @@ export default function ClaimClient() {
   }, [token, sessionReady, sessionMissing]);
 
   const handleConfirm = async () => {
-    setMessage(null);
+  setMessage(null);
 
-    if (!token) {
-      setMessage("Missing or invalid token in URL.");
-      return;
+  if (!token) {
+    setMessage("Missing or invalid token in URL.");
+    return;
+  }
+
+  setConfirming(true);
+
+  const { data: claimedId, error } = await supabase.rpc("claim_profile_id", { token });
+
+  if (error) {
+    const msg = (error.message || "").toLowerCase();
+    if (msg.includes("already") || msg.includes("used")) {
+      setMessage("This submission was already confirmed ✅");
+    } else {
+      setMessage(`Confirm failed: ${error.message}`);
     }
+    setConfirming(false);
+    return;
+  }
 
-    setConfirming(true);
+  if (!claimedId) {
+    setMessage("Confirmed, but no submission id was returned.");
+    setConfirming(false);
+    return;
+  }
 
-    const { data: claimedId, error } = await supabase.rpc("claim_profile_id", { token });
+  // Trigger Email #2 (manage link) AFTER confirmation succeeds
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    if (error) {
-      const msg = (error.message || "").toLowerCase();
-      if (msg.includes("already") || msg.includes("used")) {
-        setMessage("This submission was already confirmed ✅");
-      } else {
-        setMessage(`Confirm failed: ${error.message}`);
-      }
-      setConfirming(false);
-      return;
+    const res = await fetch("/api/send-manage-email", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session?.access_token ?? ""}`,
+      },
+      body: JSON.stringify({ id: claimedId }),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      console.error("send-manage-email failed:", res.status, txt);
+      // optional: show a friendly message but still continue
+      // setMessage("Confirmed ✅ (We couldn't send the manage email yet. Please try again later.)");
     }
+  } catch (e) {
+    console.error("send-manage-email exception:", e);
+  }
 
-    if (!claimedId) {
-      setMessage("Confirmed, but no submission id was returned.");
-      setConfirming(false);
-      return;
-    }
-
-    // Trigger Email #2 (manage link) AFTER confirmation succeeds
-    // This endpoint is provided below.
-    try {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  const res = await fetch("/api/send-manage-email", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session?.access_token ?? ""}`,
-    },
-    body: JSON.stringify({ id: claimedId }),
-  });
+  setConfirming(false);
+  router.replace(`/confirmed?id=${encodeURIComponent(claimedId)}`);
+};
 
   // Helpful during setup (so you see errors instead of silent fails)
   if (!res.ok) {

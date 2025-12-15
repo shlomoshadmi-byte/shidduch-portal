@@ -11,6 +11,9 @@ type IntakeForm = {
   user_id: string | null;
   claim_token: string | null;
 
+  deleted_at: string | null;
+  delete_reason: string | null;
+
   "First Name": string | null;
   Surname: string | null;
   "Father's Name": string | null;
@@ -82,7 +85,7 @@ export default function MeClient() {
         .from("intake_forms")
         .select(
           `
-          id, created_at, updated_at, user_id, claim_token,
+          id, created_at, updated_at, user_id, claim_token, deleted_at, delete_reason,
           "First Name",
           "Surname",
           "Father's Name",
@@ -130,6 +133,13 @@ export default function MeClient() {
         setLoading(false);
         return;
       }
+
+      if (data.deleted_at) {
+      setError("This submission was deleted and can no longer be edited.");
+      setLoading(false);
+      return;
+    }
+
 
       setRow(data as IntakeForm);
       setLoading(false);

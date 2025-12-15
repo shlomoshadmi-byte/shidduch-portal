@@ -9,6 +9,18 @@ export default function DeleteClient() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
 
+  if (!id) {
+  return (
+    <main style={{ padding: 24, fontFamily: "sans-serif", maxWidth: 680 }}>
+      <h1>Delete submission</h1>
+      <p style={{ color: "crimson" }}>
+        Missing submission id. Please use the delete link from your email.
+      </p>
+    </main>
+  );
+}
+
+
   const [loading, setLoading] = useState(true);
   const [reason, setReason] = useState("");
   const [message, setMessage] = useState<string | null>(null);

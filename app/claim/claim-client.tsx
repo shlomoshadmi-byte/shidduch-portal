@@ -126,7 +126,6 @@ export default function ClaimClient() {
     return;
   }
 
-  // Trigger Email #2 (manage link) AFTER confirmation succeeds
   try {
     const {
       data: { session },
@@ -142,10 +141,8 @@ export default function ClaimClient() {
     });
 
     if (!res.ok) {
-      const txt = await res.text().catch(() => "");
+      const txt = await res.text();
       console.error("send-manage-email failed:", res.status, txt);
-      // optional: show a friendly message but still continue
-      // setMessage("Confirmed ✅ (We couldn't send the manage email yet. Please try again later.)");
     }
   } catch (e) {
     console.error("send-manage-email exception:", e);
@@ -154,6 +151,7 @@ export default function ClaimClient() {
   setConfirming(false);
   router.replace(`/confirmed?id=${encodeURIComponent(claimedId)}`);
 };
+
 
   // Helpful during setup (so you see errors instead of silent fails)
   if (!res.ok) {

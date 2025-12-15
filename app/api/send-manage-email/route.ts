@@ -6,7 +6,8 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const N8N_WEBHOOK_URL = process.env.N8N_SEND_MANAGE_EMAIL_WEBHOOK_URL!;
 
 export async function POST(req: Request) {
-  try {
+  console.log("🔥 send-manage-email API HIT");  
+try {
     const authHeader = req.headers.get("authorization") || "";
     const accessToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
     if (!accessToken) return new NextResponse("Missing auth token", { status: 401 });

@@ -6,48 +6,40 @@ import { supabase } from "../../lib/supabaseClient";
 
 type IntakeForm = {
   id: string;
-  created_at: string;
+  created_at: string | null;
+  updated_at: string | null;
   user_id: string | null;
+  claim_token: string | null;
 
-  first_name: string | null;
-  surname: string | null;
-  fathers_name: string | null;
-  mothers_name: string | null;
-  date_of_birth: string | null; // YYYY-MM-DD
-  city: string | null;
-  country: string | null;
-  phone: string | null;
-  email: string | null;
+  "First Name": string | null;
+  Surname: string | null;
+  "Father's Name": string | null;
+  "Mother's Name": string | null;
+  "Date of Birth": string | null;
+  City: string | null;
+  Country: string | null;
+  Phone: string | null;
+  Email: string | null;
 
-  preferred_communication: string[] | null;
+  "Preffered Communication": string[] | null;
 
-  Contact_Name: string | null; // note capital C/N in your schema
-  my_primary_language: string | null;
-  my_other_languages: string | null;
+  "Contact Name": string | null;
+  "My languages": string | null;
+  Gender: string | null;
+  Height: string | null;
+  "My Community": string | null;
+  "My Status": string | null;
+  Children: string | null;
+  "My Occupation": string | null;
 
-  gender: string | null;
-  height: string | null;
+  "Their Occupation": string | null;
+  "Their Community": string | null;
+  "Their Languages": string | null;
+  "Their Status": string[] | null;
 
-  my_community: string | null;
-  my_community_other: string | null;
-  my_status: string | null;
-  children: string | null;
-
-  my_occupation: string | null;
-  my_job: string | null;
-  yeshiva_seminar: string | null;
-
-  their_occupation: string | null;
-  their_community: string[] | null;
-  their_primary_language: string | null;
-  their_addittional_languages: string[] | null;
-  their_status: string[] | null;
-
-  about_me: string | null;
-  about_them: string | null;
-  references: string | null;
-
-  my_addittional_languages: string[] | null;
+  "About Me": string | null;
+  "About Them": string | null;
+  References: string | null;
 };
 
 function arrToText(a: string[] | null | undefined) {
@@ -90,19 +82,32 @@ export default function MeClient() {
         .from("intake_forms")
         .select(
           `
-          id, created_at, user_id,
-          first_name, surname, fathers_name, mothers_name, date_of_birth,
-          city, country, phone, email,
-          preferred_communication,
-          "Contact_Name",
-          my_primary_language, my_other_languages,
-          gender, height,
-          my_community, my_community_other, my_status, children,
-          my_occupation, my_job, yeshiva_seminar,
-          their_occupation, their_community, their_primary_language,
-          their_addittional_languages, their_status,
-          about_me, about_them, references,
-          my_addittional_languages
+          id, created_at, updated_at, user_id, claim_token,
+          "First Name",
+          "Surname",
+          "Father's Name",
+          "Mother's Name",
+          "Date of Birth",
+          "City",
+          "Country",
+          "Phone",
+          "Email",
+          "Preffered Communication",
+          "Contact Name",
+          "My languages",
+          "Gender",
+          "Height",
+          "My Community",
+          "My Status",
+          "Children",
+          "My Occupation",
+          "Their Occupation",
+          "Their Community",
+          "Their Languages",
+          "Their Status",
+          "About Me",
+          "About Them",
+          "References"
         `
         )
         .eq("id", id)
@@ -115,9 +120,7 @@ export default function MeClient() {
       }
 
       if (!data) {
-        setError(
-          "This submission isn't available to your account yet. Make sure you confirmed THIS submission first."
-        );
+        setError("This submission isn't available to your account yet. Make sure you confirmed THIS submission first.");
         setLoading(false);
         return;
       }
@@ -187,17 +190,19 @@ export default function MeClient() {
     label,
     value,
     onChange,
+    placeholder,
   }: {
     label: string;
     value: string[];
     onChange: (v: string[]) => void;
+    placeholder?: string;
   }) {
     return (
       <TextArea
         label={`${label} (comma-separated)`}
         value={arrToText(value)}
         onChange={(txt) => onChange(textToArr(txt))}
-        placeholder="e.g. English, Hebrew"
+        placeholder={placeholder ?? "e.g. Email, WhatsApp"}
       />
     );
   }
@@ -214,114 +219,108 @@ export default function MeClient() {
         <b>ID:</b> {row.id}
       </div>
       <div>
-        <b>Created:</b> {row.created_at}
+        <b>Created:</b> {row.created_at ?? ""}
+      </div>
+      <div>
+        <b>Updated:</b> {row.updated_at ?? ""}
       </div>
 
-      {/* Basic */}
-      <Input label="First name" value={row.first_name ?? ""} onChange={(v) => setRow({ ...row, first_name: v })} />
-      <Input label="Surname" value={row.surname ?? ""} onChange={(v) => setRow({ ...row, surname: v })} />
       <Input
-        label="Father's name"
-        value={row.fathers_name ?? ""}
-        onChange={(v) => setRow({ ...row, fathers_name: v })}
+        label="First Name"
+        value={row["First Name"] ?? ""}
+        onChange={(v) => setRow({ ...row, ["First Name"]: v })}
+      />
+      <Input label="Surname" value={row.Surname ?? ""} onChange={(v) => setRow({ ...row, Surname: v })} />
+      <Input
+        label="Father's Name"
+        value={row["Father's Name"] ?? ""}
+        onChange={(v) => setRow({ ...row, ["Father's Name"]: v })}
       />
       <Input
-        label="Mother's name"
-        value={row.mothers_name ?? ""}
-        onChange={(v) => setRow({ ...row, mothers_name: v })}
+        label="Mother's Name"
+        value={row["Mother's Name"] ?? ""}
+        onChange={(v) => setRow({ ...row, ["Mother's Name"]: v })}
       />
       <Input
-        label="Date of birth"
-        type="date"
-        value={row.date_of_birth ?? ""}
-        onChange={(v) => setRow({ ...row, date_of_birth: v })}
+        label="Date of Birth"
+        type="text"
+        value={row["Date of Birth"] ?? ""}
+        onChange={(v) => setRow({ ...row, ["Date of Birth"]: v })}
       />
-      <Input label="City" value={row.city ?? ""} onChange={(v) => setRow({ ...row, city: v })} />
-      <Input label="Country" value={row.country ?? ""} onChange={(v) => setRow({ ...row, country: v })} />
-      <Input label="Phone" value={row.phone ?? ""} onChange={(v) => setRow({ ...row, phone: v })} />
-      <Input label="Email" value={row.email ?? ""} onChange={(v) => setRow({ ...row, email: v })} />
 
-      {/* Arrays */}
+      <Input label="City" value={row.City ?? ""} onChange={(v) => setRow({ ...row, City: v })} />
+      <Input label="Country" value={row.Country ?? ""} onChange={(v) => setRow({ ...row, Country: v })} />
+      <Input label="Phone" value={row.Phone ?? ""} onChange={(v) => setRow({ ...row, Phone: v })} />
+      <Input label="Email" value={row.Email ?? ""} onChange={(v) => setRow({ ...row, Email: v })} />
+
       <ArrayField
-        label="Preferred communication"
-        value={row.preferred_communication ?? []}
-        onChange={(v) => setRow({ ...row, preferred_communication: v })}
+        label="Preffered Communication"
+        value={row["Preffered Communication"] ?? []}
+        onChange={(v) => setRow({ ...row, ["Preffered Communication"]: v })}
       />
 
-      {/* More personal */}
-      <Input label="Contact name" value={row.Contact_Name ?? ""} onChange={(v) => setRow({ ...row, Contact_Name: v })} />
       <Input
-        label="My primary language"
-        value={row.my_primary_language ?? ""}
-        onChange={(v) => setRow({ ...row, my_primary_language: v })}
+        label="Contact Name"
+        value={row["Contact Name"] ?? ""}
+        onChange={(v) => setRow({ ...row, ["Contact Name"]: v })}
       />
       <Input
-        label="My other languages (text)"
-        value={row.my_other_languages ?? ""}
-        onChange={(v) => setRow({ ...row, my_other_languages: v })}
-      />
-      <Input label="Gender" value={row.gender ?? ""} onChange={(v) => setRow({ ...row, gender: v })} />
-      <Input label="Height" value={row.height ?? ""} onChange={(v) => setRow({ ...row, height: v })} />
-
-      <Input label="My community" value={row.my_community ?? ""} onChange={(v) => setRow({ ...row, my_community: v })} />
-      <Input
-        label="My community (other)"
-        value={row.my_community_other ?? ""}
-        onChange={(v) => setRow({ ...row, my_community_other: v })}
-      />
-      <Input label="My status" value={row.my_status ?? ""} onChange={(v) => setRow({ ...row, my_status: v })} />
-      <Input label="Children" value={row.children ?? ""} onChange={(v) => setRow({ ...row, children: v })} />
-
-      <Input
-        label="My occupation"
-        value={row.my_occupation ?? ""}
-        onChange={(v) => setRow({ ...row, my_occupation: v })}
-      />
-      <Input label="My job" value={row.my_job ?? ""} onChange={(v) => setRow({ ...row, my_job: v })} />
-      <Input
-        label="Yeshiva / seminar"
-        value={row.yeshiva_seminar ?? ""}
-        onChange={(v) => setRow({ ...row, yeshiva_seminar: v })}
+        label="My languages"
+        value={row["My languages"] ?? ""}
+        onChange={(v) => setRow({ ...row, ["My languages"]: v })}
       />
 
-      {/* Their preferences */}
+      <Input label="Gender" value={row.Gender ?? ""} onChange={(v) => setRow({ ...row, Gender: v })} />
+      <Input label="Height" value={row.Height ?? ""} onChange={(v) => setRow({ ...row, Height: v })} />
+
       <Input
-        label="Their occupation"
-        value={row.their_occupation ?? ""}
-        onChange={(v) => setRow({ ...row, their_occupation: v })}
+        label="My Community"
+        value={row["My Community"] ?? ""}
+        onChange={(v) => setRow({ ...row, ["My Community"]: v })}
       />
+      <Input
+        label="My Status"
+        value={row["My Status"] ?? ""}
+        onChange={(v) => setRow({ ...row, ["My Status"]: v })}
+      />
+      <Input label="Children" value={row.Children ?? ""} onChange={(v) => setRow({ ...row, Children: v })} />
+
+      <Input
+        label="My Occupation"
+        value={row["My Occupation"] ?? ""}
+        onChange={(v) => setRow({ ...row, ["My Occupation"]: v })}
+      />
+
+      <Input
+        label="Their Occupation"
+        value={row["Their Occupation"] ?? ""}
+        onChange={(v) => setRow({ ...row, ["Their Occupation"]: v })}
+      />
+      <Input
+        label="Their Community"
+        value={row["Their Community"] ?? ""}
+        onChange={(v) => setRow({ ...row, ["Their Community"]: v })}
+      />
+      <Input
+        label="Their Languages"
+        value={row["Their Languages"] ?? ""}
+        onChange={(v) => setRow({ ...row, ["Their Languages"]: v })}
+      />
+
       <ArrayField
-        label="Their community"
-        value={row.their_community ?? []}
-        onChange={(v) => setRow({ ...row, their_community: v })}
-      />
-      <Input
-        label="Their primary language"
-        value={row.their_primary_language ?? ""}
-        onChange={(v) => setRow({ ...row, their_primary_language: v })}
-      />
-      <ArrayField
-        label="Their additional languages"
-        value={row.their_addittional_languages ?? []}
-        onChange={(v) => setRow({ ...row, their_addittional_languages: v })}
-      />
-      <ArrayField
-        label="Their status"
-        value={row.their_status ?? []}
-        onChange={(v) => setRow({ ...row, their_status: v })}
+        label="Their Status"
+        value={row["Their Status"] ?? []}
+        onChange={(v) => setRow({ ...row, ["Their Status"]: v })}
+        placeholder="e.g. Working, Learning"
       />
 
-      {/* Long text */}
-      <TextArea label="About me" value={row.about_me ?? ""} onChange={(v) => setRow({ ...row, about_me: v })} />
-      <TextArea label="About them" value={row.about_them ?? ""} onChange={(v) => setRow({ ...row, about_them: v })} />
-      <TextArea label="References" value={row.references ?? ""} onChange={(v) => setRow({ ...row, references: v })} />
-
-      {/* Arrays */}
-      <ArrayField
-        label="My additional languages"
-        value={row.my_addittional_languages ?? []}
-        onChange={(v) => setRow({ ...row, my_addittional_languages: v })}
+      <TextArea label="About Me" value={row["About Me"] ?? ""} onChange={(v) => setRow({ ...row, ["About Me"]: v })} />
+      <TextArea
+        label="About Them"
+        value={row["About Them"] ?? ""}
+        onChange={(v) => setRow({ ...row, ["About Them"]: v })}
       />
+      <TextArea label="References" value={row.References ?? ""} onChange={(v) => setRow({ ...row, References: v })} />
 
       <button
         type="button"
@@ -340,47 +339,37 @@ export default function MeClient() {
           const { error } = await supabase
             .from("intake_forms")
             .update({
-              first_name: row.first_name,
-              surname: row.surname,
-              fathers_name: row.fathers_name,
-              mothers_name: row.mothers_name,
-              date_of_birth: row.date_of_birth,
-              city: row.city,
-              country: row.country,
-              phone: row.phone,
-              email: row.email,
+              "First Name": row["First Name"],
+              Surname: row.Surname,
+              "Father's Name": row["Father's Name"],
+              "Mother's Name": row["Mother's Name"],
+              "Date of Birth": row["Date of Birth"],
+              City: row.City,
+              Country: row.Country,
+              Phone: row.Phone,
+              Email: row.Email,
 
-              preferred_communication: row.preferred_communication,
+              "Preffered Communication": row["Preffered Communication"],
 
-              // capital column name must be quoted in JS object
-              "Contact_Name": row.Contact_Name,
+              "Contact Name": row["Contact Name"],
+              "My languages": row["My languages"],
 
-              my_primary_language: row.my_primary_language,
-              my_other_languages: row.my_other_languages,
+              Gender: row.Gender,
+              Height: row.Height,
 
-              gender: row.gender,
-              height: row.height,
+              "My Community": row["My Community"],
+              "My Status": row["My Status"],
+              Children: row.Children,
+              "My Occupation": row["My Occupation"],
 
-              my_community: row.my_community,
-              my_community_other: row.my_community_other,
-              my_status: row.my_status,
-              children: row.children,
+              "Their Occupation": row["Their Occupation"],
+              "Their Community": row["Their Community"],
+              "Their Languages": row["Their Languages"],
+              "Their Status": row["Their Status"],
 
-              my_occupation: row.my_occupation,
-              my_job: row.my_job,
-              yeshiva_seminar: row.yeshiva_seminar,
-
-              their_occupation: row.their_occupation,
-              their_community: row.their_community,
-              their_primary_language: row.their_primary_language,
-              their_addittional_languages: row.their_addittional_languages,
-              their_status: row.their_status,
-
-              about_me: row.about_me,
-              about_them: row.about_them,
-              references: row.references,
-
-              my_addittional_languages: row.my_addittional_languages,
+              "About Me": row["About Me"],
+              "About Them": row["About Them"],
+              References: row.References,
             })
             .eq("id", row.id);
 

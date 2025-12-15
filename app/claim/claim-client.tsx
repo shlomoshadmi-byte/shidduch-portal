@@ -97,7 +97,8 @@ export default function ClaimClient() {
     })();
   }, [token, sessionReady, sessionMissing]);
 
-  const handleConfirm = async () => {
+ const handleConfirm = async () => {
+  console.log("Confirm button clicked");
   setMessage(null);
 
   if (!token) {

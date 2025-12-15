@@ -64,6 +64,9 @@ export default function MeClient() {
   const [row, setRow] = useState<IntakeForm | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [preferredCommText, setPreferredCommText] = useState("");
+  const [theirStatusText, setTheirStatusText] = useState("");
+
 
   useEffect(() => {
     async function run() {
@@ -141,8 +144,14 @@ export default function MeClient() {
     }
 
 
-      setRow(data as IntakeForm);
-      setLoading(false);
+     const r = data as IntakeForm;
+
+    setRow(r);
+    setPreferredCommText(arrToText(r["Preffered Communication"]));
+    setTheirStatusText(arrToText(r["Their Status"]));
+
+    setLoading(false);
+
     }
 
     run();
@@ -263,11 +272,13 @@ export default function MeClient() {
       <Input label="Phone" value={row.Phone ?? ""} onChange={(v) => setRow({ ...row, Phone: v })} />
       <Input label="Email" value={row.Email ?? ""} onChange={(v) => setRow({ ...row, Email: v })} />
 
-      <ArrayField
-        label="Preffered Communication"
-        value={row["Preffered Communication"] ?? []}
-        onChange={(v) => setRow({ ...row, ["Preffered Communication"]: v })}
-      />
+      <TextArea
+        label="Preffered Communication (comma-separated)"
+        value={preferredCommText}
+        onChange={setPreferredCommText}
+        placeholder="e.g. Email, WhatsApp"
+/>
+
 
       <Input
         label="Contact Name"
@@ -317,12 +328,13 @@ export default function MeClient() {
         onChange={(v) => setRow({ ...row, ["Their Languages"]: v })}
       />
 
-      <ArrayField
-        label="Their Status"
-        value={row["Their Status"] ?? []}
-        onChange={(v) => setRow({ ...row, ["Their Status"]: v })}
+      <TextArea
+        label="Their Status (comma-separated)"
+        value={theirStatusText}
+        onChange={setTheirStatusText}
         placeholder="e.g. Working, Learning"
-      />
+/>
+
 
       <TextArea label="About Me" value={row["About Me"] ?? ""} onChange={(v) => setRow({ ...row, ["About Me"]: v })} />
       <TextArea
@@ -359,7 +371,7 @@ export default function MeClient() {
               Phone: row.Phone,
               Email: row.Email,
 
-              "Preffered Communication": row["Preffered Communication"],
+              "Preffered Communication": textToArr(preferredCommText),
 
               "Contact Name": row["Contact Name"],
               "My languages": row["My languages"],
@@ -375,7 +387,7 @@ export default function MeClient() {
               "Their Occupation": row["Their Occupation"],
               "Their Community": row["Their Community"],
               "Their Languages": row["Their Languages"],
-              "Their Status": row["Their Status"],
+              "Their Status": textToArr(theirStatusText),
 
               "About Me": row["About Me"],
               "About Them": row["About Them"],

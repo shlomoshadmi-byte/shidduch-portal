@@ -1,10 +1,9 @@
-import { Suspense } from "react";
-import ConfirmedClient from "./confirmed-client";
-
 export default function ConfirmedPage() {
   return (
-    <Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}>
-      <ConfirmedClient />
-    </Suspense>
+    <main style={{ padding: 24, fontFamily: "sans-serif", maxWidth: 680 }}>
+      <h1>✅ Submission confirmed</h1>
+      <p>Your submission is now linked to your account.</p>
+      <p>You will shortly receive another email with a permanent link to manage and update your submission.</p>
+    </main>
   );
 }

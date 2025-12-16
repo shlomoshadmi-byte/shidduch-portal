@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
+
+const PHOTO_BUCKET = "intake-photos";
+const LOGO_SRC = "/binah_logo.png"; // put this in /public/binah_logo.png
 
 type IntakeForm = {
   id: string;
@@ -13,6 +16,9 @@ type IntakeForm = {
 
   deleted_at: string | null;
   delete_reason: string | null;
+
+  // ✅ new column (add in Supabase)
+  photo_path?: string | null;
 
   "First Name": string | null;
   Surname: string | null;
@@ -55,6 +61,16 @@ function shallowEqualJSON(a: unknown, b: unknown) {
   } catch {
     return false;
   }
+}
+
+/** Detect RTL/LTR per value (Hebrew → rtl). */
+function detectDir(value: string) {
+  // Hebrew block
+  const hasHebrew = /[\u0590-\u05FF]/.test(value);
+  if (hasHebrew) return "rtl";
+
+  // If you later add Arabic support, you can extend here.
+  return "ltr";
 }
 
 function Section({
@@ -134,8 +150,10 @@ function TextInput({
   type?: "text" | "date";
   placeholder?: string;
 }) {
+  const dir = detectDir(value);
   return (
     <input
+      dir={dir}
       type={type}
       value={value}
       placeholder={placeholder}
@@ -146,6 +164,7 @@ function TextInput({
         border: "1px solid #d8d8d8",
         borderRadius: 10,
         outline: "none",
+        textAlign: dir === "rtl" ? "right" : "left",
       }}
     />
   );
@@ -160,8 +179,10 @@ function TextArea({
   onChange: (v: string) => void;
   placeholder?: string;
 }) {
+  const dir = detectDir(value);
   return (
     <textarea
+      dir={dir}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
@@ -173,6 +194,7 @@ function TextArea({
         outline: "none",
         minHeight: 90,
         resize: "vertical",
+        textAlign: dir === "rtl" ? "right" : "left",
       }}
     />
   );
@@ -194,6 +216,7 @@ function ChipMultiSelect({
   hint?: string;
 }) {
   const [draft, setDraft] = useState("");
+  const dir = detectDir(draft);
 
   function add(v: string) {
     const cleaned = v.trim();
@@ -254,6 +277,7 @@ function ChipMultiSelect({
 
       <div style={{ display: "flex", gap: 8 }}>
         <input
+          dir={dir}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder={placeholder}
@@ -263,6 +287,7 @@ function ChipMultiSelect({
             border: "1px solid #d8d8d8",
             borderRadius: 10,
             outline: "none",
+            textAlign: dir === "rtl" ? "right" : "left",
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -323,11 +348,15 @@ export default function MeClient() {
   const [saving, setSaving] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
 
-  // Safer arrays
+  // Arrays
   const [preferredComm, setPreferredComm] = useState<string[]>([]);
   const [theirStatus, setTheirStatus] = useState<string[]>([]);
 
-  // Track original snapshot to know if we’re “dirty”
+  // Photo UI
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+
+  // Snapshot for reset/dirty
   const originalRef = useRef<any>(null);
 
   useEffect(() => {
@@ -352,6 +381,7 @@ export default function MeClient() {
         .select(
           `
             id, created_at, updated_at, user_id, claim_token, deleted_at, delete_reason,
+            photo_path,
             "First Name",
             "Surname",
             "Father's Name",
@@ -426,12 +456,31 @@ export default function MeClient() {
     run();
   }, [id]);
 
+  // Create/refresh a signed URL for the photo whenever photo_path changes
+  useEffect(() => {
+    async function refreshPhoto() {
+      if (!row?.photo_path) {
+        setPhotoUrl(null);
+        return;
+      }
+      const { data, error } = await supabase.storage
+        .from(PHOTO_BUCKET)
+        .createSignedUrl(row.photo_path, 60 * 60); // 1 hour
+
+      if (error) {
+        // Don't block the page for this
+        console.warn("Signed URL error:", error.message);
+        setPhotoUrl(null);
+        return;
+      }
+      setPhotoUrl(data.signedUrl);
+    }
+    refreshPhoto();
+  }, [row?.photo_path]);
+
   const dirty = useMemo(() => {
     if (!row || !originalRef.current) return false;
-    return !shallowEqualJSON(
-      { row, preferredComm, theirStatus },
-      originalRef.current
-    );
+    return !shallowEqualJSON({ row, preferredComm, theirStatus }, originalRef.current);
   }, [row, preferredComm, theirStatus]);
 
   async function saveAll(partial?: { keys?: string[] }) {
@@ -441,7 +490,6 @@ export default function MeClient() {
     setBanner(null);
     setSaving(true);
 
-    // Build full payload (or optionally limit to section keys)
     const payload: any = {
       "First Name": row["First Name"],
       Surname: row.Surname,
@@ -474,9 +522,11 @@ export default function MeClient() {
       "About Me": row["About Me"],
       "About Them": row["About Them"],
       References: row.References,
+
+      // include photo_path if you want it saved along with full save
+      photo_path: row.photo_path ?? null,
     };
 
-    // If you want “save section”, we can limit update to just specific keys
     const finalPayload =
       partial?.keys?.length
         ? Object.fromEntries(partial.keys.map((k) => [k, payload[k]]))
@@ -491,7 +541,6 @@ export default function MeClient() {
       return;
     }
 
-    // Update snapshot so dirty clears
     originalRef.current = {
       row,
       preferredComm,
@@ -502,13 +551,60 @@ export default function MeClient() {
     setTimeout(() => setBanner(null), 2500);
   }
 
+  // ✅ Reset confirmation
   function resetChanges() {
     if (!originalRef.current) return;
+    if (dirty) {
+      const ok = window.confirm("You have unsaved changes. Reset and lose them?");
+      if (!ok) return;
+    }
     setRow(originalRef.current.row);
     setPreferredComm(originalRef.current.preferredComm);
     setTheirStatus(originalRef.current.theirStatus);
     setBanner("Changes reset");
     setTimeout(() => setBanner(null), 1500);
+  }
+
+  // ✅ Upload photo to Supabase Storage and store path in intake_forms.photo_path
+  async function handlePhotoUpload(file: File) {
+    if (!row) return;
+    setError(null);
+    setBanner(null);
+    setPhotoBusy(true);
+
+    try {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const safeExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "jpg";
+
+      // replaceable path per submission
+      const path = `${row.id}/photo.${safeExt}`;
+
+      const up = await supabase.storage
+        .from(PHOTO_BUCKET)
+        .upload(path, file, { upsert: true, contentType: file.type });
+
+      if (up.error) throw up.error;
+
+      // save path in DB
+      const { error } = await supabase.from("intake_forms").update({ photo_path: path }).eq("id", row.id);
+      if (error) throw error;
+
+      // update local row (triggers signed URL refresh)
+      setRow({ ...row, photo_path: path });
+
+      // refresh snapshot so "dirty" doesn't stay true just from photo
+      originalRef.current = {
+        ...originalRef.current,
+        row: { ...row, photo_path: path },
+      };
+
+      setBanner("Photo updated ✅");
+      setTimeout(() => setBanner(null), 2500);
+    } catch (e: any) {
+      setError(e?.message ?? "Photo upload failed");
+    } finally {
+      setPhotoBusy(false);
+    }
   }
 
   if (loading) return <div style={{ padding: 16 }}>Loading…</div>;
@@ -543,11 +639,25 @@ export default function MeClient() {
             gap: 12,
           }}
         >
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 700 }}>Manage submission</div>
-            <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>
-              {dirty ? "Unsaved changes" : "All changes saved"}
-              {banner ? <span style={{ marginLeft: 10, color: "#111" }}>• {banner}</span> : null}
+          {/* ✅ Centered logo + title block */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+            <img
+              src={LOGO_SRC}
+              alt="Binah Shidduchim"
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 10,
+                objectFit: "cover",
+                border: "1px solid #eee",
+              }}
+            />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 16, fontWeight: 700 }}>Manage submission</div>
+              <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>
+                {dirty ? "Unsaved changes" : "All changes saved"}
+                {banner ? <span style={{ marginLeft: 10, color: "#111" }}>• {banner}</span> : null}
+              </div>
             </div>
           </div>
 
@@ -588,10 +698,86 @@ export default function MeClient() {
 
       <div style={{ maxWidth: 920, margin: "0 auto" }}>
         <div style={{ fontSize: 12, color: "#777" }}>
-          <span><b>ID:</b> {row.id}</span>
-          <span style={{ marginLeft: 12 }}><b>Created:</b> {row.created_at ?? ""}</span>
-          <span style={{ marginLeft: 12 }}><b>Updated:</b> {row.updated_at ?? ""}</span>
+          <span>
+            <b>ID:</b> {row.id}
+          </span>
+          <span style={{ marginLeft: 12 }}>
+            <b>Created:</b> {row.created_at ?? ""}
+          </span>
+          <span style={{ marginLeft: 12 }}>
+            <b>Updated:</b> {row.updated_at ?? ""}
+          </span>
         </div>
+
+        {/* ✅ Photo section */}
+        <Section title="Photo">
+          <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+            <div
+              style={{
+                width: 120,
+                height: 120,
+                borderRadius: 16,
+                border: "1px solid #e6e6e6",
+                background: "#fafafa",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                overflow: "hidden",
+              }}
+            >
+              {photoUrl ? (
+                <img
+                  src={photoUrl}
+                  alt="Uploaded"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                <span style={{ fontSize: 12, color: "#777" }}>No photo</span>
+              )}
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: 13, color: "#444" }}>
+                Uploading here stores the photo in Supabase (separate from Tally).
+              </div>
+
+              <label
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #000",
+                  background: photoBusy ? "#f4f4f4" : "#fff",
+                  cursor: photoBusy ? "default" : "pointer",
+                  width: "fit-content",
+                  fontSize: 13,
+                  fontWeight: 700,
+                }}
+              >
+                {photoBusy ? "Uploading…" : "Upload / Replace photo"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={photoBusy}
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handlePhotoUpload(f);
+                    e.currentTarget.value = "";
+                  }}
+                />
+              </label>
+
+              {row.photo_path ? (
+                <div style={{ fontSize: 12, color: "#777" }}>
+                  Stored as: <code>{row.photo_path}</code>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </Section>
 
         <Section
           title="Personal details"
@@ -609,30 +795,19 @@ export default function MeClient() {
             <TextInput value={row.Surname ?? ""} onChange={(v) => setRow({ ...row, Surname: v })} />
           </Field>
           <Field label="Father's Name">
-            <TextInput
-              value={row["Father's Name"] ?? ""}
-              onChange={(v) => setRow({ ...row, ["Father's Name"]: v })}
-            />
+            <TextInput value={row["Father's Name"] ?? ""} onChange={(v) => setRow({ ...row, ["Father's Name"]: v })} />
           </Field>
           <Field label="Mother's Name">
-            <TextInput
-              value={row["Mother's Name"] ?? ""}
-              onChange={(v) => setRow({ ...row, ["Mother's Name"]: v })}
-            />
+            <TextInput value={row["Mother's Name"] ?? ""} onChange={(v) => setRow({ ...row, ["Mother's Name"]: v })} />
           </Field>
           <Field label="Date of Birth" hint="(as entered)">
-            <TextInput
-              value={row["Date of Birth"] ?? ""}
-              onChange={(v) => setRow({ ...row, ["Date of Birth"]: v })}
-            />
+            <TextInput value={row["Date of Birth"] ?? ""} onChange={(v) => setRow({ ...row, ["Date of Birth"]: v })} />
           </Field>
         </Section>
 
         <Section
           title="Contact"
-          onSaveSection={() =>
-            saveAll({ keys: ["City", "Country", "Phone", "Email", "Preffered Communication"] })
-          }
+          onSaveSection={() => saveAll({ keys: ["City", "Country", "Phone", "Email", "Preffered Communication"] })}
           saving={saving}
         >
           <Field label="City">
@@ -661,25 +836,13 @@ export default function MeClient() {
           title="Background"
           onSaveSection={() =>
             saveAll({
-              keys: [
-                "Contact Name",
-                "My languages",
-                "Gender",
-                "Height",
-                "My Community",
-                "My Status",
-                "Children",
-                "My Occupation",
-              ],
+              keys: ["Contact Name", "My languages", "Gender", "Height", "My Community", "My Status", "Children", "My Occupation"],
             })
           }
           saving={saving}
         >
           <Field label="Contact Name">
-            <TextInput
-              value={row["Contact Name"] ?? ""}
-              onChange={(v) => setRow({ ...row, ["Contact Name"]: v })}
-            />
+            <TextInput value={row["Contact Name"] ?? ""} onChange={(v) => setRow({ ...row, ["Contact Name"]: v })} />
           </Field>
           <Field label="My languages">
             <TextInput value={row["My languages"] ?? ""} onChange={(v) => setRow({ ...row, ["My languages"]: v })} />
@@ -691,10 +854,7 @@ export default function MeClient() {
             <TextInput value={row.Height ?? ""} onChange={(v) => setRow({ ...row, Height: v })} />
           </Field>
           <Field label="My Community">
-            <TextInput
-              value={row["My Community"] ?? ""}
-              onChange={(v) => setRow({ ...row, ["My Community"]: v })}
-            />
+            <TextInput value={row["My Community"] ?? ""} onChange={(v) => setRow({ ...row, ["My Community"]: v })} />
           </Field>
           <Field label="My Status">
             <TextInput value={row["My Status"] ?? ""} onChange={(v) => setRow({ ...row, ["My Status"]: v })} />
@@ -703,39 +863,23 @@ export default function MeClient() {
             <TextInput value={row.Children ?? ""} onChange={(v) => setRow({ ...row, Children: v })} />
           </Field>
           <Field label="My Occupation">
-            <TextInput
-              value={row["My Occupation"] ?? ""}
-              onChange={(v) => setRow({ ...row, ["My Occupation"]: v })}
-            />
+            <TextInput value={row["My Occupation"] ?? ""} onChange={(v) => setRow({ ...row, ["My Occupation"]: v })} />
           </Field>
         </Section>
 
         <Section
           title="Looking for"
-          onSaveSection={() =>
-            saveAll({
-              keys: ["Their Occupation", "Their Community", "Their Languages", "Their Status"],
-            })
-          }
+          onSaveSection={() => saveAll({ keys: ["Their Occupation", "Their Community", "Their Languages", "Their Status"] })}
           saving={saving}
         >
           <Field label="Their Occupation">
-            <TextInput
-              value={row["Their Occupation"] ?? ""}
-              onChange={(v) => setRow({ ...row, ["Their Occupation"]: v })}
-            />
+            <TextInput value={row["Their Occupation"] ?? ""} onChange={(v) => setRow({ ...row, ["Their Occupation"]: v })} />
           </Field>
           <Field label="Their Community">
-            <TextInput
-              value={row["Their Community"] ?? ""}
-              onChange={(v) => setRow({ ...row, ["Their Community"]: v })}
-            />
+            <TextInput value={row["Their Community"] ?? ""} onChange={(v) => setRow({ ...row, ["Their Community"]: v })} />
           </Field>
           <Field label="Their Languages">
-            <TextInput
-              value={row["Their Languages"] ?? ""}
-              onChange={(v) => setRow({ ...row, ["Their Languages"]: v })}
-            />
+            <TextInput value={row["Their Languages"] ?? ""} onChange={(v) => setRow({ ...row, ["Their Languages"]: v })} />
           </Field>
 
           <ChipMultiSelect
@@ -747,11 +891,7 @@ export default function MeClient() {
           />
         </Section>
 
-        <Section
-          title="About"
-          onSaveSection={() => saveAll({ keys: ["About Me", "About Them", "References"] })}
-          saving={saving}
-        >
+        <Section title="About" onSaveSection={() => saveAll({ keys: ["About Me", "About Them", "References"] })} saving={saving}>
           <Field label="About Me">
             <TextArea value={row["About Me"] ?? ""} onChange={(v) => setRow({ ...row, ["About Me"]: v })} />
           </Field>

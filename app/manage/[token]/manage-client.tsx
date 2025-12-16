@@ -1,28 +1,14 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
-// ✅ no useSearchParams
-// ✅ no supabase auth required for page load/save
-import { supabase } from "../../../lib/supabaseClient"; // keep only for storage (photo) for now
+import { useEffect, useState } from "react";
+import { supabase } from "../../../lib/supabaseClient";
 
-const PHOTO_BUCKET = "intake-photos";
-const LOGO_SRC = "/binah_logo.png";
-
+// Keep your existing IntakeForm type from me-client.tsx (copy it here)
 type IntakeForm = {
   id: string;
-  created_at: string | null;
-  updated_at: string | null;
-  user_id: string | null;
-  claim_token: string | null;
-
   deleted_at: string | null;
   delete_reason: string | null;
-
   photo_path?: string | null;
-
-  // ✅ add tokens so you can show delete link
-  manage_token?: string | null;
-  delete_token?: string | null;
 
   "First Name": string | null;
   Surname: string | null;
@@ -55,286 +41,15 @@ type IntakeForm = {
   References: string | null;
 };
 
-function normalizeArr(a: string[]) {
-  return a.map((x) => x.trim()).filter(Boolean);
-}
-
-function shallowEqualJSON(a: unknown, b: unknown) {
-  try {
-    return JSON.stringify(a) === JSON.stringify(b);
-  } catch {
-    return false;
-  }
-}
-
-function detectDir(value: string) {
-  const hasHebrew = /[\u0590-\u05FF]/.test(value);
-  if (hasHebrew) return "rtl";
-  return "ltr";
-}
-
-function Section({
-  title,
-  children,
-  onSaveSection,
-  saving,
-}: {
-  title: string;
-  children: React.ReactNode;
-  onSaveSection?: () => void;
-  saving?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        border: "1px solid #e6e6e6",
-        borderRadius: 12,
-        padding: 16,
-        background: "#fff",
-        marginTop: 14,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <h2 style={{ margin: 0, fontSize: 16 }}>{title}</h2>
-        {onSaveSection ? (
-          <button
-            type="button"
-            onClick={onSaveSection}
-            disabled={!!saving}
-            style={{
-              padding: "8px 12px",
-              border: "1px solid #000",
-              background: saving ? "#f4f4f4" : "#fff",
-              cursor: saving ? "default" : "pointer",
-              borderRadius: 10,
-              fontSize: 13,
-            }}
-          >
-            {saving ? "Saving…" : "Save section"}
-          </button>
-        ) : null}
-      </div>
-      <div style={{ marginTop: 10 }}>{children}</div>
-    </div>
-  );
-}
-
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <label style={{ display: "block", marginTop: 12 }}>
-      <div style={{ fontSize: 12, marginBottom: 6, color: "#222" }}>
-        {label}
-        {hint ? <span style={{ marginLeft: 8, color: "#777" }}>{hint}</span> : null}
-      </div>
-      {children}
-    </label>
-  );
-}
-
-function TextInput({
-  value,
-  onChange,
-  type = "text",
-  placeholder,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  type?: "text" | "date";
-  placeholder?: string;
-}) {
-  const dir = detectDir(value);
-  return (
-    <input
-      dir={dir}
-      type={type}
-      value={value}
-      placeholder={placeholder}
-      onChange={(e) => onChange(e.target.value)}
-      style={{
-        width: "100%",
-        padding: 10,
-        border: "1px solid #d8d8d8",
-        borderRadius: 10,
-        outline: "none",
-        textAlign: dir === "rtl" ? "right" : "left",
-      }}
-    />
-  );
-}
-
-function TextArea({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
-  const dir = detectDir(value);
-  return (
-    <textarea
-      dir={dir}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      style={{
-        width: "100%",
-        padding: 10,
-        border: "1px solid #d8d8d8",
-        borderRadius: 10,
-        outline: "none",
-        minHeight: 90,
-        resize: "vertical",
-        textAlign: dir === "rtl" ? "right" : "left",
-      }}
-    />
-  );
-}
-
-function ChipMultiSelect({
-  label,
-  values,
-  onChange,
-  suggestions,
-  placeholder = "Type and press Enter…",
-  hint,
-}: {
-  label: string;
-  values: string[];
-  onChange: (v: string[]) => void;
-  suggestions?: string[];
-  placeholder?: string;
-  hint?: string;
-}) {
-  const [draft, setDraft] = useState("");
-  const dir = detectDir(draft);
-
-  function add(v: string) {
-    const cleaned = v.trim();
-    if (!cleaned) return;
-    if (values.includes(cleaned)) return;
-    onChange([...values, cleaned]);
-    setDraft("");
-  }
-
-  function remove(v: string) {
-    onChange(values.filter((x) => x !== v));
-  }
-
-  return (
-    <div style={{ marginTop: 12 }}>
-      <div style={{ fontSize: 12, marginBottom: 6 }}>
-        {label}
-        {hint ? <span style={{ marginLeft: 8, color: "#777" }}>{hint}</span> : null}
-      </div>
-
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-        {values.length ? (
-          values.map((v) => (
-            <span
-              key={v}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                border: "1px solid #e0e0e0",
-                borderRadius: 999,
-                padding: "6px 10px",
-                background: "#fafafa",
-                fontSize: 13,
-              }}
-            >
-              {v}
-              <button
-                type="button"
-                onClick={() => remove(v)}
-                style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: 14, lineHeight: 1 }}
-                aria-label={`Remove ${v}`}
-              >
-                ×
-              </button>
-            </span>
-          ))
-        ) : (
-          <span style={{ color: "#777", fontSize: 13 }}>None selected</span>
-        )}
-      </div>
-
-      <div style={{ display: "flex", gap: 8 }}>
-        <input
-          dir={dir}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={placeholder}
-          style={{
-            flex: 1,
-            padding: 10,
-            border: "1px solid #d8d8d8",
-            borderRadius: 10,
-            outline: "none",
-            textAlign: dir === "rtl" ? "right" : "left",
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              add(draft);
-            }
-          }}
-        />
-        <button
-          type="button"
-          onClick={() => add(draft)}
-          style={{
-            padding: "10px 12px",
-            border: "1px solid #000",
-            background: "#fff",
-            cursor: "pointer",
-            borderRadius: 10,
-            fontSize: 13,
-          }}
-        >
-          Add
-        </button>
-      </div>
-
-      {suggestions?.length ? (
-        <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {suggestions.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => add(s)}
-              style={{
-                padding: "6px 10px",
-                border: "1px solid #e0e0e0",
-                background: "#fff",
-                cursor: "pointer",
-                borderRadius: 10,
-                fontSize: 12,
-              }}
-            >
-              + {s}
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 export default function ManageClient({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [row, setRow] = useState<IntakeForm | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [saving, setSaving] = useState(false);
-  const [banner, setBanner] = useState<string | null>(null);
-
-  const [preferredComm, setPreferredComm] = useState<string[]>([]);
-  const [theirStatus, setTheirStatus] = useState<string[]>([]);
-
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [photoBusy, setPhotoBusy] = useState(false);
-
-  const originalRef = useRef<any>(null);
-
   useEffect(() => {
     async function run() {
       setError(null);
-      setBanner(null);
+      setLoading(true);
 
       if (!token) {
         setError("Missing manage token. Open this page from your email link.");
@@ -342,359 +57,62 @@ export default function ManageClient({ token }: { token: string }) {
         return;
       }
 
-      const res = await fetch(`/api/intake/by-manage-token?token=${encodeURIComponent(token)}`);
-      const json = await res.json().catch(() => ({}));
+      // Fetch row by manage_token (no login required)
+      const { data, error } = await supabase
+        .from("intake_forms")
+        .select(
+          `
+          id, deleted_at, delete_reason, photo_path,
+          "First Name","Surname","Father's Name","Mother's Name","Date of Birth",
+          "City","Country","Phone","Email","Preffered Communication",
+          "Contact Name","My languages","Gender","Height","My Community","My Status",
+          "Children","My Occupation",
+          "Their Occupation","Their Community","Their Languages","Their Status",
+          "About Me","About Them","References"
+        `
+        )
+        .eq("manage_token", token)
+        .maybeSingle();
 
-      if (!res.ok) {
-        setError(json.error ?? "Failed to load submission.");
+      if (error) {
+        setError(error.message);
         setLoading(false);
         return;
       }
 
-      const r = json.data as IntakeForm;
+      if (!data) {
+        setError("Invalid or expired manage link.");
+        setLoading(false);
+        return;
+      }
 
-      if (r.deleted_at) {
+      if (data.deleted_at) {
         setError("This submission was deleted and can no longer be edited.");
         setLoading(false);
         return;
       }
 
-      setRow(r);
-
-      const pc = r["Preffered Communication"] ?? [];
-      const ts = r["Their Status"] ?? [];
-      setPreferredComm(pc);
-      setTheirStatus(ts);
-
-      originalRef.current = { row: r, preferredComm: pc, theirStatus: ts };
-
+      setRow(data as IntakeForm);
       setLoading(false);
     }
 
     run();
   }, [token]);
 
-  // NOTE: This still uses supabase storage from the browser.
-  // If your storage bucket is private, this may require auth.
-  useEffect(() => {
-    async function refreshPhoto() {
-      if (!row?.photo_path) {
-        setPhotoUrl(null);
-        return;
-      }
-      const { data, error } = await supabase.storage.from(PHOTO_BUCKET).createSignedUrl(row.photo_path, 60 * 60);
-      if (error) {
-        console.warn("Signed URL error:", error.message);
-        setPhotoUrl(null);
-        return;
-      }
-      setPhotoUrl(data.signedUrl);
-    }
-    refreshPhoto();
-  }, [row?.photo_path]);
-
-  const dirty = useMemo(() => {
-    if (!row || !originalRef.current) return false;
-    return !shallowEqualJSON({ row, preferredComm, theirStatus }, originalRef.current);
-  }, [row, preferredComm, theirStatus]);
-
-  async function saveAll(partial?: { keys?: string[] }) {
-    if (!row) return;
-
-    setError(null);
-    setBanner(null);
-    setSaving(true);
-
-    const payload: any = {
-      "First Name": row["First Name"],
-      Surname: row.Surname,
-      "Father's Name": row["Father's Name"],
-      "Mother's Name": row["Mother's Name"],
-      "Date of Birth": row["Date of Birth"],
-      City: row.City,
-      Country: row.Country,
-      Phone: row.Phone,
-      Email: row.Email,
-
-      "Preffered Communication": normalizeArr(preferredComm),
-
-      "Contact Name": row["Contact Name"],
-      "My languages": row["My languages"],
-
-      Gender: row.Gender,
-      Height: row.Height,
-
-      "My Community": row["My Community"],
-      "My Status": row["My Status"],
-      Children: row.Children,
-      "My Occupation": row["My Occupation"],
-
-      "Their Occupation": row["Their Occupation"],
-      "Their Community": row["Their Community"],
-      "Their Languages": row["Their Languages"],
-      "Their Status": normalizeArr(theirStatus),
-
-      "About Me": row["About Me"],
-      "About Them": row["About Them"],
-      References: row.References,
-
-      photo_path: row.photo_path ?? null,
-    };
-
-    const finalPayload =
-      partial?.keys?.length ? Object.fromEntries(partial.keys.map((k) => [k, payload[k]])) : payload;
-
-    const res = await fetch("/api/intake/update-by-manage-token", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, updates: finalPayload }),
-    });
-
-    const json = await res.json().catch(() => ({}));
-
-    setSaving(false);
-
-    if (!res.ok) {
-      setError(json.error ?? "Save failed.");
-      return;
-    }
-
-    const updated = json.data as IntakeForm;
-    setRow(updated);
-
-    originalRef.current = { row: updated, preferredComm, theirStatus };
-
-    setBanner("Saved ✅");
-    setTimeout(() => setBanner(null), 2500);
-  }
-
-  function resetChanges() {
-    if (!originalRef.current) return;
-    if (dirty) {
-      const ok = window.confirm("You have unsaved changes. Reset and lose them?");
-      if (!ok) return;
-    }
-    setRow(originalRef.current.row);
-    setPreferredComm(originalRef.current.preferredComm);
-    setTheirStatus(originalRef.current.theirStatus);
-    setBanner("Changes reset");
-    setTimeout(() => setBanner(null), 1500);
-  }
-
-  // NOTE: Uploading to storage from the browser may require auth if bucket is private.
-  async function handlePhotoUpload(file: File) {
-    if (!row) return;
-    setError(null);
-    setBanner(null);
-    setPhotoBusy(true);
-
-    try {
-      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-      const safeExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "jpg";
-
-      const path = `${row.id}/photo.${safeExt}`;
-
-      const up = await supabase.storage.from(PHOTO_BUCKET).upload(path, file, {
-        upsert: true,
-        contentType: file.type,
-      });
-      if (up.error) throw up.error;
-
-      // save path via our API (so it works without auth too)
-      const res = await fetch("/api/intake/update-by-manage-token", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, updates: { photo_path: path } }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error ?? "Failed to save photo path");
-
-      const updated = json.data as IntakeForm;
-      setRow(updated);
-
-      originalRef.current = {
-        ...originalRef.current,
-        row: updated,
-      };
-
-      setBanner("Photo updated ✅");
-      setTimeout(() => setBanner(null), 2500);
-    } catch (e: any) {
-      setError(e?.message ?? "Photo upload failed");
-    } finally {
-      setPhotoBusy(false);
-    }
-  }
-
   if (loading) return <div style={{ padding: 16 }}>Loading…</div>;
   if (error) return <pre style={{ padding: 16, color: "crimson", whiteSpace: "pre-wrap" }}>{error}</pre>;
   if (!row) return <div style={{ padding: 16 }}>Not found.</div>;
 
+  // ✅ Temporary: just prove it loads. Next we can reuse your full MeClient UI.
   return (
-    <div style={{ padding: 16, background: "#f7f7f7", minHeight: "100vh" }}>
-      <div
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
-          background: "rgba(247,247,247,0.95)",
-          backdropFilter: "blur(6px)",
-          paddingBottom: 10,
-          marginBottom: 8,
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 920,
-            margin: "0 auto",
-            border: "1px solid #e6e6e6",
-            background: "#fff",
-            borderRadius: 12,
-            padding: 12,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-            <img
-              src={LOGO_SRC}
-              alt="Binah Shidduchim"
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 10,
-                objectFit: "cover",
-                border: "1px solid #eee",
-              }}
-            />
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 16, fontWeight: 700 }}>Manage submission</div>
-              <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>
-                {dirty ? "Unsaved changes" : "All changes saved"}
-                {banner ? <span style={{ marginLeft: 10, color: "#111" }}>• {banner}</span> : null}
-              </div>
-            </div>
-          </div>
+    <main style={{ padding: 24, fontFamily: "sans-serif", maxWidth: 700 }}>
+      <h1>Manage submission</h1>
+      <p>
+        <b>{row["First Name"]} {row.Surname}</b>
+      </p>
+      <p>ID: {row.id}</p>
 
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              type="button"
-              disabled={!dirty || saving}
-              onClick={resetChanges}
-              style={{
-                padding: "10px 12px",
-                borderRadius: 10,
-                border: "1px solid #ddd",
-                background: "#fff",
-                cursor: !dirty || saving ? "default" : "pointer",
-              }}
-            >
-              Reset
-            </button>
-
-            <button
-              type="button"
-              disabled={!dirty || saving}
-              onClick={() => saveAll()}
-              style={{
-                padding: "10px 14px",
-                borderRadius: 10,
-                border: "1px solid #000",
-                background: saving ? "#f4f4f4" : "#fff",
-                cursor: !dirty || saving ? "default" : "pointer",
-                fontWeight: 700,
-              }}
-            >
-              {saving ? "Saving…" : "Save"}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ maxWidth: 920, margin: "0 auto" }}>
-        <div style={{ fontSize: 12, color: "#777" }}>
-          <span>
-            <b>ID:</b> {row.id}
-          </span>
-          <span style={{ marginLeft: 12 }}>
-            <b>Created:</b> {row.created_at ?? ""}
-          </span>
-          <span style={{ marginLeft: 12 }}>
-            <b>Updated:</b> {row.updated_at ?? ""}
-          </span>
-          {row.delete_token ? (
-            <span style={{ marginLeft: 12 }}>
-              <a style={{ color: "crimson" }} href={`/delete/${encodeURIComponent(row.delete_token)}`}>
-                Delete my submission
-              </a>
-            </span>
-          ) : null}
-        </div>
-
-        <Section title="Photo">
-          <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
-            <div
-              style={{
-                width: 120,
-                height: 120,
-                borderRadius: 16,
-                border: "1px solid #e6e6e6",
-                background: "#fafafa",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                overflow: "hidden",
-              }}
-            >
-              {photoUrl ? (
-                <img src={photoUrl} alt="Uploaded" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : (
-                <span style={{ fontSize: 12, color: "#777" }}>No photo</span>
-              )}
-            </div>
-
-            <label
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "10px 12px",
-                borderRadius: 10,
-                border: "1px solid #000",
-                background: photoBusy ? "#f4f4f4" : "#fff",
-                cursor: photoBusy ? "default" : "pointer",
-                width: "fit-content",
-                fontSize: 13,
-                fontWeight: 700,
-              }}
-            >
-              {photoBusy ? "Uploading…" : "Upload / Replace photo"}
-              <input
-                type="file"
-                accept="image/*"
-                disabled={photoBusy}
-                style={{ display: "none" }}
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) handlePhotoUpload(f);
-                  e.currentTarget.value = "";
-                }}
-              />
-            </label>
-
-            {row.photo_path ? (
-              <div style={{ fontSize: 12, color: "#777" }}>
-                Stored as: <code>{row.photo_path}</code>
-              </div>
-            ) : null}
-          </div>
-        </Section>
-
-        {/* Everything below stays the same as your current UI */}
-        {/* ... your Sections and Fields unchanged ... */}
-      </div>
-    </div>
+      {/* Next step: paste your full editor UI here (your MeClient) and change update queries to use manage_token */}
+    </main>
   );
 }

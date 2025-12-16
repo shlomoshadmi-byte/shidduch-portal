@@ -3,8 +3,52 @@ import LoginClient from "./login-client";
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div style={{ padding: 16 }}>Loading…</div>}>
-      <LoginClient />
-    </Suspense>
+    <main
+      style={{
+        minHeight: "100vh",
+        padding: 24,
+        fontFamily: "sans-serif",
+        background: "#fafafa",
+      }}
+    >
+      {/* Brand header */}
+      <header
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          marginBottom: 32,
+        }}
+      >
+        <img
+          src="/binah_logo.png"
+          alt="Binah Shidduchim"
+          style={{ height: 56 }}
+        />
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>
+            Binah Shidduchim
+          </div>
+          <div style={{ fontSize: 13, color: "#666" }}>
+            Secure login
+          </div>
+        </div>
+      </header>
+
+      {/* Content card */}
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #e6e6e6",
+          borderRadius: 14,
+          padding: 24,
+          maxWidth: 480,
+        }}
+      >
+        <Suspense fallback={<div>Loading…</div>}>
+          <LoginClient />
+        </Suspense>
+      </div>
+    </main>
   );
 }

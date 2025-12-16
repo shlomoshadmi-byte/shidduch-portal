@@ -160,22 +160,31 @@ try {
   return;
 }
 
-// Email #2 succeeded → redirect
-setConfirming(false);
-router.replace(`/confirmed?manage_token=${encodeURIComponent(row.manage_token)}`);
-
+// 3) Send Email #2 (no auth header; token-based)
+try {
+  const res = await fetch("/api/send-manage-email", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ manage_token: row.manage_token }),
+  });
 
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
     setConfirming(false);
     setMessage(`Confirmed ✅ but Email #2 failed (${res.status}): ${txt || "No details"}`);
-    return; // IMPORTANT: don't redirect so you can see the error
+    return; // IMPORTANT: don't redirect
   }
+
+  // ✅ Email #2 succeeded → redirect
+  setConfirming(false);
+  router.replace(`/confirmed?manage_token=${encodeURIComponent(row.manage_token)}`);
+
 } catch (e) {
   setConfirming(false);
   setMessage("Confirmed ✅ but Email #2 failed (network error).");
   return;
 }
+
 
 
 // Email #2 succeeded → now redirect

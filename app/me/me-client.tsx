@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
@@ -45,64 +45,270 @@ type IntakeForm = {
   References: string | null;
 };
 
-function arrToText(a: string[] | null | undefined) {
-  return (a ?? []).join(", ");
-}
-function textToArr(s: string) {
-  const items = s
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean);
-  return items.length ? items : [];
+function normalizeArr(a: string[]) {
+  return a.map((x) => x.trim()).filter(Boolean);
 }
 
-/** ✅ moved OUTSIDE MeClient to prevent remount/jump */
-function Input({
+function shallowEqualJSON(a: unknown, b: unknown) {
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
+}
+
+function Section({
+  title,
+  children,
+  onSaveSection,
+  saving,
+}: {
+  title: string;
+  children: React.ReactNode;
+  onSaveSection?: () => void;
+  saving?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        border: "1px solid #e6e6e6",
+        borderRadius: 12,
+        padding: 16,
+        background: "#fff",
+        marginTop: 14,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <h2 style={{ margin: 0, fontSize: 16 }}>{title}</h2>
+        {onSaveSection ? (
+          <button
+            type="button"
+            onClick={onSaveSection}
+            disabled={!!saving}
+            style={{
+              padding: "8px 12px",
+              border: "1px solid #000",
+              background: saving ? "#f4f4f4" : "#fff",
+              cursor: saving ? "default" : "pointer",
+              borderRadius: 10,
+              fontSize: 13,
+            }}
+          >
+            {saving ? "Saving…" : "Save section"}
+          </button>
+        ) : null}
+      </div>
+      <div style={{ marginTop: 10 }}>{children}</div>
+    </div>
+  );
+}
+
+function Field({
   label,
-  value,
-  onChange,
-  type = "text",
+  hint,
+  children,
 }: {
   label: string;
-  value: string;
-  onChange: (v: string) => void;
-  type?: "text" | "date";
+  hint?: string;
+  children: React.ReactNode;
 }) {
   return (
     <label style={{ display: "block", marginTop: 12 }}>
-      <div style={{ fontSize: 12, marginBottom: 4 }}>{label}</div>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={{ width: "100%", padding: 8, border: "1px solid #ccc" }}
-      />
+      <div style={{ fontSize: 12, marginBottom: 6, color: "#222" }}>
+        {label}
+        {hint ? <span style={{ marginLeft: 8, color: "#777" }}>{hint}</span> : null}
+      </div>
+      {children}
     </label>
   );
 }
 
-/** ✅ moved OUTSIDE MeClient to prevent remount/jump */
+function TextInput({
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  type?: "text" | "date";
+  placeholder?: string;
+}) {
+  return (
+    <input
+      type={type}
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      style={{
+        width: "100%",
+        padding: 10,
+        border: "1px solid #d8d8d8",
+        borderRadius: 10,
+        outline: "none",
+      }}
+    />
+  );
+}
+
 function TextArea({
-  label,
   value,
   onChange,
   placeholder,
 }: {
-  label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
 }) {
   return (
-    <label style={{ display: "block", marginTop: 12 }}>
-      <div style={{ fontSize: 12, marginBottom: 4 }}>{label}</div>
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        style={{ width: "100%", padding: 8, border: "1px solid #ccc", minHeight: 70 }}
-      />
-    </label>
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      style={{
+        width: "100%",
+        padding: 10,
+        border: "1px solid #d8d8d8",
+        borderRadius: 10,
+        outline: "none",
+        minHeight: 90,
+        resize: "vertical",
+      }}
+    />
+  );
+}
+
+function ChipMultiSelect({
+  label,
+  values,
+  onChange,
+  suggestions,
+  placeholder = "Type and press Enter…",
+  hint,
+}: {
+  label: string;
+  values: string[];
+  onChange: (v: string[]) => void;
+  suggestions?: string[];
+  placeholder?: string;
+  hint?: string;
+}) {
+  const [draft, setDraft] = useState("");
+
+  function add(v: string) {
+    const cleaned = v.trim();
+    if (!cleaned) return;
+    if (values.includes(cleaned)) return;
+    onChange([...values, cleaned]);
+    setDraft("");
+  }
+
+  function remove(v: string) {
+    onChange(values.filter((x) => x !== v));
+  }
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ fontSize: 12, marginBottom: 6 }}>
+        {label}
+        {hint ? <span style={{ marginLeft: 8, color: "#777" }}>{hint}</span> : null}
+      </div>
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+        {values.length ? (
+          values.map((v) => (
+            <span
+              key={v}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                border: "1px solid #e0e0e0",
+                borderRadius: 999,
+                padding: "6px 10px",
+                background: "#fafafa",
+                fontSize: 13,
+              }}
+            >
+              {v}
+              <button
+                type="button"
+                onClick={() => remove(v)}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: 14,
+                  lineHeight: 1,
+                }}
+                aria-label={`Remove ${v}`}
+              >
+                ×
+              </button>
+            </span>
+          ))
+        ) : (
+          <span style={{ color: "#777", fontSize: 13 }}>None selected</span>
+        )}
+      </div>
+
+      <div style={{ display: "flex", gap: 8 }}>
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder={placeholder}
+          style={{
+            flex: 1,
+            padding: 10,
+            border: "1px solid #d8d8d8",
+            borderRadius: 10,
+            outline: "none",
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add(draft);
+            }
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => add(draft)}
+          style={{
+            padding: "10px 12px",
+            border: "1px solid #000",
+            background: "#fff",
+            cursor: "pointer",
+            borderRadius: 10,
+            fontSize: 13,
+          }}
+        >
+          Add
+        </button>
+      </div>
+
+      {suggestions?.length ? (
+        <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {suggestions.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => add(s)}
+              style={{
+                padding: "6px 10px",
+                border: "1px solid #e0e0e0",
+                background: "#fff",
+                cursor: "pointer",
+                borderRadius: 10,
+                fontSize: 12,
+              }}
+            >
+              + {s}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -113,14 +319,21 @@ export default function MeClient() {
   const [loading, setLoading] = useState(true);
   const [row, setRow] = useState<IntakeForm | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
 
-  const [preferredCommText, setPreferredCommText] = useState("");
-  const [theirStatusText, setTheirStatusText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [banner, setBanner] = useState<string | null>(null);
+
+  // Safer arrays
+  const [preferredComm, setPreferredComm] = useState<string[]>([]);
+  const [theirStatus, setTheirStatus] = useState<string[]>([]);
+
+  // Track original snapshot to know if we’re “dirty”
+  const originalRef = useRef<any>(null);
 
   useEffect(() => {
     async function run() {
       setError(null);
+      setBanner(null);
 
       if (!id) {
         setError("Missing submission id. Open this page from your email link.");
@@ -138,33 +351,33 @@ export default function MeClient() {
         .from("intake_forms")
         .select(
           `
-          id, created_at, updated_at, user_id, claim_token, deleted_at, delete_reason,
-          "First Name",
-          "Surname",
-          "Father's Name",
-          "Mother's Name",
-          "Date of Birth",
-          "City",
-          "Country",
-          "Phone",
-          "Email",
-          "Preffered Communication",
-          "Contact Name",
-          "My languages",
-          "Gender",
-          "Height",
-          "My Community",
-          "My Status",
-          "Children",
-          "My Occupation",
-          "Their Occupation",
-          "Their Community",
-          "Their Languages",
-          "Their Status",
-          "About Me",
-          "About Them",
-          "References"
-        `
+            id, created_at, updated_at, user_id, claim_token, deleted_at, delete_reason,
+            "First Name",
+            "Surname",
+            "Father's Name",
+            "Mother's Name",
+            "Date of Birth",
+            "City",
+            "Country",
+            "Phone",
+            "Email",
+            "Preffered Communication",
+            "Contact Name",
+            "My languages",
+            "Gender",
+            "Height",
+            "My Community",
+            "My Status",
+            "Children",
+            "My Occupation",
+            "Their Occupation",
+            "Their Community",
+            "Their Languages",
+            "Their Status",
+            "About Me",
+            "About Them",
+            "References"
+          `
         )
         .eq("id", id)
         .maybeSingle();
@@ -195,183 +408,363 @@ export default function MeClient() {
 
       const r = data as IntakeForm;
       setRow(r);
-      setPreferredCommText(arrToText(r["Preffered Communication"]));
-      setTheirStatusText(arrToText(r["Their Status"]));
+
+      const pc = r["Preffered Communication"] ?? [];
+      const ts = r["Their Status"] ?? [];
+      setPreferredComm(pc);
+      setTheirStatus(ts);
+
+      originalRef.current = {
+        row: r,
+        preferredComm: pc,
+        theirStatus: ts,
+      };
+
       setLoading(false);
     }
 
     run();
   }, [id]);
 
+  const dirty = useMemo(() => {
+    if (!row || !originalRef.current) return false;
+    return !shallowEqualJSON(
+      { row, preferredComm, theirStatus },
+      originalRef.current
+    );
+  }, [row, preferredComm, theirStatus]);
+
+  async function saveAll(partial?: { keys?: string[] }) {
+    if (!row) return;
+
+    setError(null);
+    setBanner(null);
+    setSaving(true);
+
+    // Build full payload (or optionally limit to section keys)
+    const payload: any = {
+      "First Name": row["First Name"],
+      Surname: row.Surname,
+      "Father's Name": row["Father's Name"],
+      "Mother's Name": row["Mother's Name"],
+      "Date of Birth": row["Date of Birth"],
+      City: row.City,
+      Country: row.Country,
+      Phone: row.Phone,
+      Email: row.Email,
+
+      "Preffered Communication": normalizeArr(preferredComm),
+
+      "Contact Name": row["Contact Name"],
+      "My languages": row["My languages"],
+
+      Gender: row.Gender,
+      Height: row.Height,
+
+      "My Community": row["My Community"],
+      "My Status": row["My Status"],
+      Children: row.Children,
+      "My Occupation": row["My Occupation"],
+
+      "Their Occupation": row["Their Occupation"],
+      "Their Community": row["Their Community"],
+      "Their Languages": row["Their Languages"],
+      "Their Status": normalizeArr(theirStatus),
+
+      "About Me": row["About Me"],
+      "About Them": row["About Them"],
+      References: row.References,
+    };
+
+    // If you want “save section”, we can limit update to just specific keys
+    const finalPayload =
+      partial?.keys?.length
+        ? Object.fromEntries(partial.keys.map((k) => [k, payload[k]]))
+        : payload;
+
+    const { error } = await supabase.from("intake_forms").update(finalPayload).eq("id", row.id);
+
+    setSaving(false);
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    // Update snapshot so dirty clears
+    originalRef.current = {
+      row,
+      preferredComm,
+      theirStatus,
+    };
+
+    setBanner("Saved ✅");
+    setTimeout(() => setBanner(null), 2500);
+  }
+
+  function resetChanges() {
+    if (!originalRef.current) return;
+    setRow(originalRef.current.row);
+    setPreferredComm(originalRef.current.preferredComm);
+    setTheirStatus(originalRef.current.theirStatus);
+    setBanner("Changes reset");
+    setTimeout(() => setBanner(null), 1500);
+  }
+
   if (loading) return <div style={{ padding: 16 }}>Loading…</div>;
-  if (error) return <pre style={{ padding: 16, color: "red" }}>{error}</pre>;
+  if (error) return <pre style={{ padding: 16, color: "crimson", whiteSpace: "pre-wrap" }}>{error}</pre>;
   if (!row) return <div style={{ padding: 16 }}>Not found.</div>;
 
   return (
-    <div style={{ padding: 16, maxWidth: 820 }}>
-      <h1>Manage submission</h1>
-
-      <div>
-        <b>ID:</b> {row.id}
-      </div>
-      <div>
-        <b>Created:</b> {row.created_at ?? ""}
-      </div>
-      <div>
-        <b>Updated:</b> {row.updated_at ?? ""}
-      </div>
-
-      <Input label="First Name" value={row["First Name"] ?? ""} onChange={(v) => setRow({ ...row, ["First Name"]: v })} />
-      <Input label="Surname" value={row.Surname ?? ""} onChange={(v) => setRow({ ...row, Surname: v })} />
-
-      <Input
-        label="Father's Name"
-        value={row["Father's Name"] ?? ""}
-        onChange={(v) => setRow({ ...row, ["Father's Name"]: v })}
-      />
-      <Input
-        label="Mother's Name"
-        value={row["Mother's Name"] ?? ""}
-        onChange={(v) => setRow({ ...row, ["Mother's Name"]: v })}
-      />
-
-      <Input
-        label="Date of Birth"
-        type="text"
-        value={row["Date of Birth"] ?? ""}
-        onChange={(v) => setRow({ ...row, ["Date of Birth"]: v })}
-      />
-
-      <Input label="City" value={row.City ?? ""} onChange={(v) => setRow({ ...row, City: v })} />
-      <Input label="Country" value={row.Country ?? ""} onChange={(v) => setRow({ ...row, Country: v })} />
-      <Input label="Phone" value={row.Phone ?? ""} onChange={(v) => setRow({ ...row, Phone: v })} />
-      <Input label="Email" value={row.Email ?? ""} onChange={(v) => setRow({ ...row, Email: v })} />
-
-      <TextArea
-        label="Preffered Communication (comma-separated)"
-        value={preferredCommText}
-        onChange={setPreferredCommText}
-        placeholder="e.g. Email, WhatsApp"
-      />
-
-      <Input
-        label="Contact Name"
-        value={row["Contact Name"] ?? ""}
-        onChange={(v) => setRow({ ...row, ["Contact Name"]: v })}
-      />
-      <Input
-        label="My languages"
-        value={row["My languages"] ?? ""}
-        onChange={(v) => setRow({ ...row, ["My languages"]: v })}
-      />
-
-      <Input label="Gender" value={row.Gender ?? ""} onChange={(v) => setRow({ ...row, Gender: v })} />
-      <Input label="Height" value={row.Height ?? ""} onChange={(v) => setRow({ ...row, Height: v })} />
-
-      <Input
-        label="My Community"
-        value={row["My Community"] ?? ""}
-        onChange={(v) => setRow({ ...row, ["My Community"]: v })}
-      />
-      <Input
-        label="My Status"
-        value={row["My Status"] ?? ""}
-        onChange={(v) => setRow({ ...row, ["My Status"]: v })}
-      />
-      <Input label="Children" value={row.Children ?? ""} onChange={(v) => setRow({ ...row, Children: v })} />
-
-      <Input
-        label="My Occupation"
-        value={row["My Occupation"] ?? ""}
-        onChange={(v) => setRow({ ...row, ["My Occupation"]: v })}
-      />
-
-      <Input
-        label="Their Occupation"
-        value={row["Their Occupation"] ?? ""}
-        onChange={(v) => setRow({ ...row, ["Their Occupation"]: v })}
-      />
-      <Input
-        label="Their Community"
-        value={row["Their Community"] ?? ""}
-        onChange={(v) => setRow({ ...row, ["Their Community"]: v })}
-      />
-      <Input
-        label="Their Languages"
-        value={row["Their Languages"] ?? ""}
-        onChange={(v) => setRow({ ...row, ["Their Languages"]: v })}
-      />
-
-      <TextArea
-        label="Their Status (comma-separated)"
-        value={theirStatusText}
-        onChange={setTheirStatusText}
-        placeholder="e.g. Working, Learning"
-      />
-
-      <TextArea label="About Me" value={row["About Me"] ?? ""} onChange={(v) => setRow({ ...row, ["About Me"]: v })} />
-      <TextArea label="About Them" value={row["About Them"] ?? ""} onChange={(v) => setRow({ ...row, ["About Them"]: v })} />
-      <TextArea label="References" value={row.References ?? ""} onChange={(v) => setRow({ ...row, References: v })} />
-
-      <button
-        type="button"
-        disabled={saving}
+    <div style={{ padding: 16, background: "#f7f7f7", minHeight: "100vh" }}>
+      {/* Sticky top bar */}
+      <div
         style={{
-          marginTop: 16,
-          padding: "8px 14px",
-          border: "1px solid black",
-          background: "#fff",
-          cursor: "pointer",
-        }}
-        onClick={async () => {
-          setError(null);
-          setSaving(true);
-
-          const { error } = await supabase
-            .from("intake_forms")
-            .update({
-              "First Name": row["First Name"],
-              Surname: row.Surname,
-              "Father's Name": row["Father's Name"],
-              "Mother's Name": row["Mother's Name"],
-              "Date of Birth": row["Date of Birth"],
-              City: row.City,
-              Country: row.Country,
-              Phone: row.Phone,
-              Email: row.Email,
-
-              "Preffered Communication": textToArr(preferredCommText),
-
-              "Contact Name": row["Contact Name"],
-              "My languages": row["My languages"],
-
-              Gender: row.Gender,
-              Height: row.Height,
-
-              "My Community": row["My Community"],
-              "My Status": row["My Status"],
-              Children: row.Children,
-              "My Occupation": row["My Occupation"],
-
-              "Their Occupation": row["Their Occupation"],
-              "Their Community": row["Their Community"],
-              "Their Languages": row["Their Languages"],
-              "Their Status": textToArr(theirStatusText),
-
-              "About Me": row["About Me"],
-              "About Them": row["About Them"],
-              References: row.References,
-            })
-            .eq("id", row.id);
-
-          setSaving(false);
-
-          if (error) setError(error.message);
-          else alert("Saved ✅");
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
+          background: "rgba(247,247,247,0.95)",
+          backdropFilter: "blur(6px)",
+          paddingBottom: 10,
+          marginBottom: 8,
         }}
       >
-        {saving ? "Saving..." : "Save changes"}
-      </button>
+        <div
+          style={{
+            maxWidth: 920,
+            margin: "0 auto",
+            border: "1px solid #e6e6e6",
+            background: "#fff",
+            borderRadius: 12,
+            padding: 12,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700 }}>Manage submission</div>
+            <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>
+              {dirty ? "Unsaved changes" : "All changes saved"}
+              {banner ? <span style={{ marginLeft: 10, color: "#111" }}>• {banner}</span> : null}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              disabled={!dirty || saving}
+              onClick={resetChanges}
+              style={{
+                padding: "10px 12px",
+                borderRadius: 10,
+                border: "1px solid #ddd",
+                background: "#fff",
+                cursor: !dirty || saving ? "default" : "pointer",
+              }}
+            >
+              Reset
+            </button>
+
+            <button
+              type="button"
+              disabled={!dirty || saving}
+              onClick={() => saveAll()}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 10,
+                border: "1px solid #000",
+                background: saving ? "#f4f4f4" : "#fff",
+                cursor: !dirty || saving ? "default" : "pointer",
+                fontWeight: 700,
+              }}
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 920, margin: "0 auto" }}>
+        <div style={{ fontSize: 12, color: "#777" }}>
+          <span><b>ID:</b> {row.id}</span>
+          <span style={{ marginLeft: 12 }}><b>Created:</b> {row.created_at ?? ""}</span>
+          <span style={{ marginLeft: 12 }}><b>Updated:</b> {row.updated_at ?? ""}</span>
+        </div>
+
+        <Section
+          title="Personal details"
+          onSaveSection={() =>
+            saveAll({
+              keys: ["First Name", "Surname", "Father's Name", "Mother's Name", "Date of Birth"],
+            })
+          }
+          saving={saving}
+        >
+          <Field label="First Name">
+            <TextInput value={row["First Name"] ?? ""} onChange={(v) => setRow({ ...row, ["First Name"]: v })} />
+          </Field>
+          <Field label="Surname">
+            <TextInput value={row.Surname ?? ""} onChange={(v) => setRow({ ...row, Surname: v })} />
+          </Field>
+          <Field label="Father's Name">
+            <TextInput
+              value={row["Father's Name"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["Father's Name"]: v })}
+            />
+          </Field>
+          <Field label="Mother's Name">
+            <TextInput
+              value={row["Mother's Name"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["Mother's Name"]: v })}
+            />
+          </Field>
+          <Field label="Date of Birth" hint="(as entered)">
+            <TextInput
+              value={row["Date of Birth"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["Date of Birth"]: v })}
+            />
+          </Field>
+        </Section>
+
+        <Section
+          title="Contact"
+          onSaveSection={() =>
+            saveAll({ keys: ["City", "Country", "Phone", "Email", "Preffered Communication"] })
+          }
+          saving={saving}
+        >
+          <Field label="City">
+            <TextInput value={row.City ?? ""} onChange={(v) => setRow({ ...row, City: v })} />
+          </Field>
+          <Field label="Country">
+            <TextInput value={row.Country ?? ""} onChange={(v) => setRow({ ...row, Country: v })} />
+          </Field>
+          <Field label="Phone">
+            <TextInput value={row.Phone ?? ""} onChange={(v) => setRow({ ...row, Phone: v })} />
+          </Field>
+          <Field label="Email">
+            <TextInput value={row.Email ?? ""} onChange={(v) => setRow({ ...row, Email: v })} />
+          </Field>
+
+          <ChipMultiSelect
+            label="Preferred Communication"
+            hint="(safe — won’t break saving)"
+            values={preferredComm}
+            onChange={setPreferredComm}
+            suggestions={["Email", "WhatsApp", "Phone call", "SMS"]}
+          />
+        </Section>
+
+        <Section
+          title="Background"
+          onSaveSection={() =>
+            saveAll({
+              keys: [
+                "Contact Name",
+                "My languages",
+                "Gender",
+                "Height",
+                "My Community",
+                "My Status",
+                "Children",
+                "My Occupation",
+              ],
+            })
+          }
+          saving={saving}
+        >
+          <Field label="Contact Name">
+            <TextInput
+              value={row["Contact Name"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["Contact Name"]: v })}
+            />
+          </Field>
+          <Field label="My languages">
+            <TextInput value={row["My languages"] ?? ""} onChange={(v) => setRow({ ...row, ["My languages"]: v })} />
+          </Field>
+          <Field label="Gender">
+            <TextInput value={row.Gender ?? ""} onChange={(v) => setRow({ ...row, Gender: v })} />
+          </Field>
+          <Field label="Height">
+            <TextInput value={row.Height ?? ""} onChange={(v) => setRow({ ...row, Height: v })} />
+          </Field>
+          <Field label="My Community">
+            <TextInput
+              value={row["My Community"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["My Community"]: v })}
+            />
+          </Field>
+          <Field label="My Status">
+            <TextInput value={row["My Status"] ?? ""} onChange={(v) => setRow({ ...row, ["My Status"]: v })} />
+          </Field>
+          <Field label="Children">
+            <TextInput value={row.Children ?? ""} onChange={(v) => setRow({ ...row, Children: v })} />
+          </Field>
+          <Field label="My Occupation">
+            <TextInput
+              value={row["My Occupation"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["My Occupation"]: v })}
+            />
+          </Field>
+        </Section>
+
+        <Section
+          title="Looking for"
+          onSaveSection={() =>
+            saveAll({
+              keys: ["Their Occupation", "Their Community", "Their Languages", "Their Status"],
+            })
+          }
+          saving={saving}
+        >
+          <Field label="Their Occupation">
+            <TextInput
+              value={row["Their Occupation"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["Their Occupation"]: v })}
+            />
+          </Field>
+          <Field label="Their Community">
+            <TextInput
+              value={row["Their Community"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["Their Community"]: v })}
+            />
+          </Field>
+          <Field label="Their Languages">
+            <TextInput
+              value={row["Their Languages"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["Their Languages"]: v })}
+            />
+          </Field>
+
+          <ChipMultiSelect
+            label="Their Status"
+            hint="(safe — won’t break saving)"
+            values={theirStatus}
+            onChange={setTheirStatus}
+            suggestions={["Working", "Learning", "Both", "Other"]}
+          />
+        </Section>
+
+        <Section
+          title="About"
+          onSaveSection={() => saveAll({ keys: ["About Me", "About Them", "References"] })}
+          saving={saving}
+        >
+          <Field label="About Me">
+            <TextArea value={row["About Me"] ?? ""} onChange={(v) => setRow({ ...row, ["About Me"]: v })} />
+          </Field>
+          <Field label="About Them">
+            <TextArea value={row["About Them"] ?? ""} onChange={(v) => setRow({ ...row, ["About Them"]: v })} />
+          </Field>
+          <Field label="References">
+            <TextArea value={row.References ?? ""} onChange={(v) => setRow({ ...row, References: v })} />
+          </Field>
+        </Section>
+
+        <div style={{ height: 40 }} />
+      </div>
     </div>
   );
 }

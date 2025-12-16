@@ -56,6 +56,56 @@ function textToArr(s: string) {
   return items.length ? items : [];
 }
 
+/** ✅ moved OUTSIDE MeClient to prevent remount/jump */
+function Input({
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: "text" | "date";
+}) {
+  return (
+    <label style={{ display: "block", marginTop: 12 }}>
+      <div style={{ fontSize: 12, marginBottom: 4 }}>{label}</div>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{ width: "100%", padding: 8, border: "1px solid #ccc" }}
+      />
+    </label>
+  );
+}
+
+/** ✅ moved OUTSIDE MeClient to prevent remount/jump */
+function TextArea({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <label style={{ display: "block", marginTop: 12 }}>
+      <div style={{ fontSize: 12, marginBottom: 4 }}>{label}</div>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{ width: "100%", padding: 8, border: "1px solid #ccc", minHeight: 70 }}
+      />
+    </label>
+  );
+}
+
 export default function MeClient() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
@@ -64,9 +114,9 @@ export default function MeClient() {
   const [row, setRow] = useState<IntakeForm | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
   const [preferredCommText, setPreferredCommText] = useState("");
   const [theirStatusText, setTheirStatusText] = useState("");
-
 
   useEffect(() => {
     async function run() {
@@ -138,93 +188,20 @@ export default function MeClient() {
       }
 
       if (data.deleted_at) {
-      setError("This submission was deleted and can no longer be edited.");
+        setError("This submission was deleted and can no longer be edited.");
+        setLoading(false);
+        return;
+      }
+
+      const r = data as IntakeForm;
+      setRow(r);
+      setPreferredCommText(arrToText(r["Preffered Communication"]));
+      setTheirStatusText(arrToText(r["Their Status"]));
       setLoading(false);
-      return;
-    }
-
-
-     const r = data as IntakeForm;
-
-    setRow(r);
-    setPreferredCommText(arrToText(r["Preffered Communication"]));
-    setTheirStatusText(arrToText(r["Their Status"]));
-
-    setLoading(false);
-
     }
 
     run();
   }, [id]);
-
-  function Input({
-    label,
-    value,
-    onChange,
-    type = "text",
-  }: {
-    label: string;
-    value: string;
-    onChange: (v: string) => void;
-    type?: "text" | "date";
-  }) {
-    return (
-      <label style={{ display: "block", marginTop: 12 }}>
-        <div style={{ fontSize: 12, marginBottom: 4 }}>{label}</div>
-        <input
-          type={type}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          style={{ width: "100%", padding: 8, border: "1px solid #ccc" }}
-        />
-      </label>
-    );
-  }
-
-  function TextArea({
-    label,
-    value,
-    onChange,
-    placeholder,
-  }: {
-    label: string;
-    value: string;
-    onChange: (v: string) => void;
-    placeholder?: string;
-  }) {
-    return (
-      <label style={{ display: "block", marginTop: 12 }}>
-        <div style={{ fontSize: 12, marginBottom: 4 }}>{label}</div>
-        <textarea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          style={{ width: "100%", padding: 8, border: "1px solid #ccc", minHeight: 70 }}
-        />
-      </label>
-    );
-  }
-
-  function ArrayField({
-    label,
-    value,
-    onChange,
-    placeholder,
-  }: {
-    label: string;
-    value: string[];
-    onChange: (v: string[]) => void;
-    placeholder?: string;
-  }) {
-    return (
-      <TextArea
-        label={`${label} (comma-separated)`}
-        value={arrToText(value)}
-        onChange={(txt) => onChange(textToArr(txt))}
-        placeholder={placeholder ?? "e.g. Email, WhatsApp"}
-      />
-    );
-  }
 
   if (loading) return <div style={{ padding: 16 }}>Loading…</div>;
   if (error) return <pre style={{ padding: 16, color: "red" }}>{error}</pre>;
@@ -244,12 +221,9 @@ export default function MeClient() {
         <b>Updated:</b> {row.updated_at ?? ""}
       </div>
 
-      <Input
-        label="First Name"
-        value={row["First Name"] ?? ""}
-        onChange={(v) => setRow({ ...row, ["First Name"]: v })}
-      />
+      <Input label="First Name" value={row["First Name"] ?? ""} onChange={(v) => setRow({ ...row, ["First Name"]: v })} />
       <Input label="Surname" value={row.Surname ?? ""} onChange={(v) => setRow({ ...row, Surname: v })} />
+
       <Input
         label="Father's Name"
         value={row["Father's Name"] ?? ""}
@@ -260,6 +234,7 @@ export default function MeClient() {
         value={row["Mother's Name"] ?? ""}
         onChange={(v) => setRow({ ...row, ["Mother's Name"]: v })}
       />
+
       <Input
         label="Date of Birth"
         type="text"
@@ -277,8 +252,7 @@ export default function MeClient() {
         value={preferredCommText}
         onChange={setPreferredCommText}
         placeholder="e.g. Email, WhatsApp"
-/>
-
+      />
 
       <Input
         label="Contact Name"
@@ -333,15 +307,10 @@ export default function MeClient() {
         value={theirStatusText}
         onChange={setTheirStatusText}
         placeholder="e.g. Working, Learning"
-/>
-
+      />
 
       <TextArea label="About Me" value={row["About Me"] ?? ""} onChange={(v) => setRow({ ...row, ["About Me"]: v })} />
-      <TextArea
-        label="About Them"
-        value={row["About Them"] ?? ""}
-        onChange={(v) => setRow({ ...row, ["About Them"]: v })}
-      />
+      <TextArea label="About Them" value={row["About Them"] ?? ""} onChange={(v) => setRow({ ...row, ["About Them"]: v })} />
       <TextArea label="References" value={row.References ?? ""} onChange={(v) => setRow({ ...row, References: v })} />
 
       <button

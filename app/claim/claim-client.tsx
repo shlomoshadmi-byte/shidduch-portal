@@ -171,11 +171,12 @@ router.replace(`/confirmed?manage_token=${encodeURIComponent(row.manage_token)}`
     setMessage(`Confirmed ✅ but Email #2 failed (${res.status}): ${txt || "No details"}`);
     return; // IMPORTANT: don't redirect so you can see the error
   }
-} catch {
+} catch (e) {
   setConfirming(false);
   setMessage("Confirmed ✅ but Email #2 failed (network error).");
-  return; // IMPORTANT: don't redirect
+  return;
 }
+
 
 // Email #2 succeeded → now redirect
 setConfirming(false);

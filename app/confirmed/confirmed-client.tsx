@@ -4,13 +4,17 @@ import { useSearchParams } from "next/navigation";
 
 export default function ConfirmedClient() {
   const searchParams = useSearchParams();
-  const id = searchParams.get("id");
+  const manageToken = searchParams.get("manage_token");
 
-  if (!id) {
+  if (!manageToken) {
     return (
-      <main style={{ padding: 24, fontFamily: "sans-serif" }}>
-        <h1>Confirmed</h1>
-        <p>Missing submission id.</p>
+      <main style={{ padding: 24, fontFamily: "sans-serif", maxWidth: 700 }}>
+        <h1>✅ Submission confirmed</h1>
+        <p>
+          Your submission was confirmed successfully.
+          <br />
+          Please check your email for the permanent link to manage and edit your submission.
+        </p>
       </main>
     );
   }
@@ -18,10 +22,11 @@ export default function ConfirmedClient() {
   return (
     <main style={{ padding: 24, fontFamily: "sans-serif", maxWidth: 700 }}>
       <h1>✅ Submission confirmed</h1>
-      <p>Your submission is now linked to your account.</p>
+
+      <p>Your submission is confirmed.</p>
 
       <a
-        href={`/me?id=${encodeURIComponent(id)}`}
+        href={`/manage/${encodeURIComponent(manageToken)}`}
         style={{
           display: "inline-block",
           marginTop: 16,
@@ -29,10 +34,15 @@ export default function ConfirmedClient() {
           border: "1px solid black",
           textDecoration: "none",
           background: "white",
+          fontWeight: 600,
         }}
       >
         Manage / edit my submission
       </a>
+
+      <p style={{ marginTop: 16, fontSize: 13, color: "#555" }}>
+        We also sent this link to your email. You can bookmark it and open it on any device.
+      </p>
     </main>
   );
 }

@@ -127,27 +127,43 @@ export default function ClaimClient() {
       return;
     }
 
-   // 2) Send Email #2 (manage link). If it fails, SHOW the error and stop.
+  // 2) Fetch manage_token for this row (now that it's claimed)
+const { data: row, error: rowErr } = await supabase
+  .from("intake_forms")
+  .select(`manage_token`)
+  .eq("id", claimedId)
+  .single();
+
+if (rowErr || !row?.manage_token) {
+  setConfirming(false);
+  setMessage("Confirmed ✅ but could not load manage token. Please contact support.");
+  return;
+}
+
+// 3) Send Email #2 (no auth header; token-based)
 try {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  const accessToken = session?.access_token;
-  if (!accessToken) {
-    setConfirming(false);
-    setMessage("Confirmed ✅ but Email #2 failed: missing login token. Please click the magic link again.");
-    return;
-  }
-
   const res = await fetch("/api/send-manage-email", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({ id: claimedId }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ manage_token: row.manage_token }),
   });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    setConfirming(false);
+    setMessage(`Confirmed ✅ but Email #2 failed (${res.status}): ${txt || "No details"}`);
+    return;
+  }
+} catch {
+  setConfirming(false);
+  setMessage("Confirmed ✅ but Email #2 failed (network error).");
+  return;
+}
+
+// Email #2 succeeded → redirect
+setConfirming(false);
+router.replace(`/confirmed?manage_token=${encodeURIComponent(row.manage_token)}`);
+
 
   if (!res.ok) {
     const txt = await res.text().catch(() => "");

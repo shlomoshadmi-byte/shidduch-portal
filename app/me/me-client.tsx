@@ -710,74 +710,79 @@ export default function MeClient() {
         </div>
 
         {/* ✅ Photo section */}
-        <Section title="Photo">
-          <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
-            <div
-              style={{
-                width: 120,
-                height: 120,
-                borderRadius: 16,
-                border: "1px solid #e6e6e6",
-                background: "#fafafa",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                overflow: "hidden",
-              }}
-            >
-              {photoUrl ? (
-                <img
-                  src={photoUrl}
-                  alt="Uploaded"
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              ) : (
-                <span style={{ fontSize: 12, color: "#777" }}>No photo</span>
-              )}
-            </div>
+<Section title="Photo">
+  <div
+    style={{
+      display: "flex",
+      gap: 16,
+      alignItems: "center",
+      flexWrap: "wrap",
+    }}
+  >
+    {/* Preview */}
+    <div
+      style={{
+        width: 120,
+        height: 120,
+        borderRadius: 16,
+        border: "1px solid #e6e6e6",
+        background: "#fafafa",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: "hidden",
+      }}
+    >
+      {photoUrl ? (
+        <img
+          src={photoUrl}
+          alt="Uploaded"
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        />
+      ) : (
+        <span style={{ fontSize: 12, color: "#777" }}>No photo</span>
+      )}
+    </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ fontSize: 13, color: "#444" }}>
-                Uploading here stores the photo in Supabase (separate from Tally).
-              </div>
+    {/* Upload button */}
+    <label
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "10px 12px",
+        borderRadius: 10,
+        border: "1px solid #000",
+        background: photoBusy ? "#f4f4f4" : "#fff",
+        cursor: photoBusy ? "default" : "pointer",
+        width: "fit-content",
+        fontSize: 13,
+        fontWeight: 700,
+      }}
+    >
+      {photoBusy ? "Uploading…" : "Upload / Replace photo"}
+      <input
+        type="file"
+        accept="image/*"
+        disabled={photoBusy}
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handlePhotoUpload(f);
+          e.currentTarget.value = "";
+        }}
+      />
+    </label>
 
-              <label
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  border: "1px solid #000",
-                  background: photoBusy ? "#f4f4f4" : "#fff",
-                  cursor: photoBusy ? "default" : "pointer",
-                  width: "fit-content",
-                  fontSize: 13,
-                  fontWeight: 700,
-                }}
-              >
-                {photoBusy ? "Uploading…" : "Upload / Replace photo"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  disabled={photoBusy}
-                  style={{ display: "none" }}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handlePhotoUpload(f);
-                    e.currentTarget.value = "";
-                  }}
-                />
-              </label>
+    {/* Path info (optional) */}
+    {row.photo_path ? (
+      <div style={{ fontSize: 12, color: "#777" }}>
+        Stored as: <code>{row.photo_path}</code>
+      </div>
+    ) : null}
+  </div>
+</Section>
 
-              {row.photo_path ? (
-                <div style={{ fontSize: 12, color: "#777" }}>
-                  Stored as: <code>{row.photo_path}</code>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </Section>
 
         <Section
           title="Personal details"

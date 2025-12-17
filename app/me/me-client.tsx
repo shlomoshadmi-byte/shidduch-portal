@@ -435,13 +435,6 @@ export default function MeClient() {
     return !shallowEqualJSON({ row, preferredComm, theirStatus }, originalRef.current);
   }, [row, preferredComm, theirStatus]);
 
- <h3>Profile Update Alert</h3>
-<b>User:</b> {{ $json.body.name }}<br>
-<b>Email:</b> {{ $json.body.email }}<br>
-<b>ID:</b> {{ $json.body.id }}<br>
-<hr>
-<h3>Changes Made:</h3>
-{{ Object.entries($json.body.changes).map(entry => `<b>${entry[0]}:</b> ${entry[1]}`).join("<br>") }}
 
   function resetChanges() {
     if (!originalRef.current) return;

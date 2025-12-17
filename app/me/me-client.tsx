@@ -435,76 +435,13 @@ export default function MeClient() {
     return !shallowEqualJSON({ row, preferredComm, theirStatus }, originalRef.current);
   }, [row, preferredComm, theirStatus]);
 
-  // ✅ SIMPLIFIED SAVE FUNCTION (Always Full Save)
-  async function saveAll() {
-    if (!row) return;
-
-    setError(null);
-    setBanner(null);
-    setSaving(true);
-
-    const payload: any = {
-      "First Name": row["First Name"],
-      Surname: row.Surname,
-      "Father's Name": row["Father's Name"],
-      "Mother's Name": row["Mother's Name"],
-      "Date of Birth": row["Date of Birth"],
-      City: row.City,
-      Country: row.Country,
-      Phone: row.Phone,
-      Email: row.Email,
-      "Preffered Communication": normalizeArr(preferredComm),
-      "Contact Name": row["Contact Name"],
-      "My languages": row["My languages"],
-      Gender: row.Gender,
-      Height: row.Height,
-      "My Community": row["My Community"],
-      "My Status": row["My Status"],
-      Children: row.Children,
-      "My Occupation": row["My Occupation"],
-      "Their Occupation": row["Their Occupation"],
-      "Their Community": row["Their Community"],
-      "Their Languages": row["Their Languages"],
-      "Their Status": normalizeArr(theirStatus),
-      "About Me": row["About Me"],
-      "About Them": row["About Them"],
-      References: row.References,
-      photo_path: row.photo_path ?? null,
-    };
-
-    const { error } = await supabase.from("intake_forms").update(payload).eq("id", row.id);
-
-    setSaving(false);
-
-    if (error) {
-      setError(error.message);
-      return;
-    }
-
-    // ✅ ALERT ADMIN (Call our local API route)
-    if (!error) {
-      fetch("/api/notify-edit", {  // <--- Changed to local route
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "EDIT",
-          id: row.id,
-          name: `${row["First Name"]} ${row.Surname}`,
-          email: row.Email,
-          changes: payload
-        }),
-      }).catch(err => console.error("Edit alert failed", err));
-    }
-
-    originalRef.current = {
-      row,
-      preferredComm,
-      theirStatus,
-    };
-
-    setBanner("Saved ✅");
-    setTimeout(() => setBanner(null), 2500);
-  }
+ <h3>Profile Update Alert</h3>
+<b>User:</b> {{ $json.body.name }}<br>
+<b>Email:</b> {{ $json.body.email }}<br>
+<b>ID:</b> {{ $json.body.id }}<br>
+<hr>
+<h3>Changes Made:</h3>
+{{ Object.entries($json.body.changes).map(entry => `<b>${entry[0]}:</b> ${entry[1]}`).join("<br>") }}
 
   function resetChanges() {
     if (!originalRef.current) return;

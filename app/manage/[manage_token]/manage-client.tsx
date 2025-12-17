@@ -70,7 +70,7 @@ export default function ManageClient({ manageToken }: { manageToken: string }) {
           
           <div className="mb-6 flex justify-center">
              {/* Uses your existing logo */}
-             <Image src="/binah_logo.jpg" alt="Logo" width={120} height={120} className="object-contain" priority />
+             <Image src="/binah_logo.png" alt="Logo" width={120} height={120} className="object-contain" priority />
           </div>
 
           <h1 className="mb-4 text-2xl font-bold text-red-600">

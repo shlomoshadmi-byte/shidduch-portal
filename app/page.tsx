@@ -11,7 +11,7 @@ export default function Home() {
         {/* Logo Section */}
         <div className="mb-8 flex justify-center">
           <Image
-            src="/binah_logo.jpg"
+            src="/binah_logo.png"
             alt="Binah Shidduchim Logo"
             width={200}
             height={200}

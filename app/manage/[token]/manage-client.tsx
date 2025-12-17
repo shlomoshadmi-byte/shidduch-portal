@@ -1,13 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 
-export default function ManageClient() {
-  const params = useParams<{ token: string }>();
-  const token = params?.token;
-
+export default function ManageClient({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rowId, setRowId] = useState<string | null>(null);
@@ -17,7 +13,7 @@ export default function ManageClient() {
       setError(null);
       setLoading(true);
 
-      if (!token || typeof token !== "string") {
+      if (!token) {
         setError("Missing manage token. Open this page from your email link.");
         setLoading(false);
         return;
@@ -61,7 +57,6 @@ export default function ManageClient() {
     <main style={{ padding: 24, fontFamily: "sans-serif" }}>
       <h1>Manage</h1>
       <p>✅ Loaded submission id: {rowId}</p>
-      <p>Token: {token}</p>
     </main>
   );
 }

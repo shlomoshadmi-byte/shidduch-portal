@@ -7,27 +7,16 @@ const N8N_WEBHOOK_URL = process.env.N8N_SEND_MANAGE_EMAIL_WEBHOOK_URL!;
 
 export async function POST(req: Request) {
   try {
-    // --- env validation ---
-    if (!SUPABASE_URL) {
-      return new NextResponse("Missing NEXT_PUBLIC_SUPABASE_URL", { status: 500 });
-    }
-    if (!SERVICE_ROLE_KEY) {
-      return new NextResponse("Missing SUPABASE_SERVICE_ROLE_KEY", { status: 500 });
-    }
-    if (!N8N_WEBHOOK_URL) {
-      return new NextResponse("Missing N8N_SEND_MANAGE_EMAIL_WEBHOOK_URL", { status: 500 });
-    }
+    if (!SUPABASE_URL) return new NextResponse("Missing NEXT_PUBLIC_SUPABASE_URL", { status: 500 });
+    if (!SERVICE_ROLE_KEY) return new NextResponse("Missing SUPABASE_SERVICE_ROLE_KEY", { status: 500 });
+    if (!N8N_WEBHOOK_URL) return new NextResponse("Missing N8N_SEND_MANAGE_EMAIL_WEBHOOK_URL", { status: 500 });
 
-    // --- input validation ---
-    const body = await req.json().catch(() => null);
-    const manage_token = body?.manage_token;
+    const { manage_token } = await req.json();
+    if (!manage_token) return new NextResponse("Missing manage_token", { status: 400 });
 
-    if (!manage_token || typeof manage_token !== "string") {
-      return new NextResponse("Missing manage_token", { status: 400 });
-    }
-
-    // --- server-side supabase admin client ---
-    const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+    const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+      auth: { persistSession: false },
+    });
 
     const { data: row, error } = await supabaseAdmin
       .from("intake_forms")
@@ -38,15 +27,11 @@ export async function POST(req: Request) {
     if (error) return new NextResponse(error.message, { status: 400 });
     if (!row) return new NextResponse("Not found", { status: 404 });
     if (row.deleted_at) return new NextResponse("Submission deleted", { status: 410 });
-
-    if (!row.manage_token || !row.delete_token) {
-      return new NextResponse("Row missing manage_token or delete_token", { status: 500 });
-    }
+    if (!row.manage_token || !row.delete_token) return new NextResponse("Row missing tokens", { status: 500 });
 
     const base = "https://www.shidduch-gmach.org";
 
-    // --- call n8n webhook to send email ---
-    const n8nRes = await fetch(N8N_WEBHOOK_URL, {
+    const r = await fetch(N8N_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -59,11 +44,9 @@ export async function POST(req: Request) {
       }),
     });
 
-    if (!n8nRes.ok) {
-      const txt = await n8nRes.text().catch(() => "");
-      return new NextResponse(`n8n error (${n8nRes.status}): ${txt || "No details"}`, {
-        status: 502,
-      });
+    if (!r.ok) {
+      const txt = await r.text().catch(() => "");
+      return new NextResponse(`n8n webhook failed: ${r.status} ${txt}`, { status: 502 });
     }
 
     return NextResponse.json({ ok: true });

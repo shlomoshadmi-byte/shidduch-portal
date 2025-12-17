@@ -41,15 +41,21 @@ type IntakeForm = {
 };
 
 export default function ManageClient({ manageToken }: { manageToken: string }) {
-  console.log("manageToken =", manageToken); // 👈 ADD THIS
+  console.log("manageToken =", manageToken);
 
-  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [row, setRow] = useState<IntakeForm | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function run() {
+      setError(null);
+      setRow(null);
+      setLoading(true);
+
       if (!manageToken) {
         setError("Missing manage token. Open this page from your email link.");
+        setLoading(false);
         return;
       }
 

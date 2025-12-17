@@ -14,7 +14,6 @@ export default function ManageClient({ manageToken }: { manageToken: string }) {
         return;
       }
 
-      // ✅ Minimal approach: resolve manage_token → id, then reuse your existing /me?id=...
       const res = await fetch("/api/resolve-manage-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

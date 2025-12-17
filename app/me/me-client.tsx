@@ -481,18 +481,20 @@ export default function MeClient() {
       return;
     }
 
-    // ✅ NOTIFY ADMIN (WEBHOOK)
-    fetch("https://lightrun.app.n8n.cloud/webhook/alert-edit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "EDIT",
-        id: row.id,
-        name: `${row["First Name"]} ${row.Surname}`,
-        email: row.Email,
-        changes: payload // Sending full payload
-      }),
-    }).catch(err => console.error("Failed to notify admin of edit", err));
+    // ✅ ALERT ADMIN (Call our local API route)
+    if (!error) {
+      fetch("/api/notify-edit", {  // <--- Changed to local route
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "EDIT",
+          id: row.id,
+          name: `${row["First Name"]} ${row.Surname}`,
+          email: row.Email,
+          changes: payload
+        }),
+      }).catch(err => console.error("Edit alert failed", err));
+    }
 
     originalRef.current = {
       row,
@@ -537,18 +539,18 @@ export default function MeClient() {
       const { error } = await supabase.from("intake_forms").update({ photo_path: path }).eq("id", row.id);
       if (error) throw error;
 
-      // ✅ ALERT ADMIN ABOUT PHOTO
-      fetch("https://lightrun.app.n8n.cloud/webhook/alert-edit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "PHOTO_UPDATE", // Different type so you know it's a picture
-          id: row.id,
-          name: `${row["First Name"]} ${row.Surname}`,
-          email: row.Email,
-          changes: { photo_path: path }
-        }),
-      }).catch(err => console.error("Photo alert failed", err));
+      // ✅ ALERT ADMIN ABOUT PHOTO (Call our local API route)
+    fetch("/api/notify-edit", { // <--- Changed to local route
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "PHOTO_UPDATE",
+        id: row.id,
+        name: `${row["First Name"]} ${row.Surname}`,
+        email: row.Email,
+        changes: { photo_path: path }
+      }),
+    }).catch(err => console.error("Photo alert failed", err));
 
       setRow({ ...row, photo_path: path });
       originalRef.current = {

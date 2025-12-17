@@ -13,10 +13,10 @@ export async function POST(req: Request) {
 
     const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    // 1. Find row by token & GET CONTACT INFO for the email alert
+    // 1. Find the profile & get contact details for the email
     const { data: row, error: findErr } = await supabaseAdmin
       .from("intake_forms")
-      .select('id, deleted_at, "First Name", Surname, Email') // ✅ Added name/email fields
+      .select('id, deleted_at, "First Name", Surname, Email')
       .eq("delete_token", delete_token)
       .maybeSingle();
 
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     const now = new Date().toISOString();
     const finalReason = (typeof reason === "string" && reason.trim()) ? reason.trim() : "No reason provided";
 
-    // 2. Perform the Soft Delete
+    // 2. Mark as deleted in Supabase
     const { error: updErr } = await supabaseAdmin
       .from("intake_forms")
       .update({
@@ -38,18 +38,29 @@ export async function POST(req: Request) {
 
     if (updErr) return new NextResponse(updErr.message, { status: 400 });
 
-    // ✅✅✅ START: ADMIN ALERT (Fire and Forget) ✅✅✅
-    fetch("https://lightrun.app.n8n.cloud/webhook/profile-deleted", { 
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "DELETE",
-        name: `${row["First Name"]} ${row.Surname}`,
-        email: row.Email,
-        reason: finalReason
-      }),
-    }).catch(err => console.error("Failed to notify admin of delete", err));
-    // ✅✅✅ END: ADMIN ALERT ✅✅✅
+    // ✅ ALERT ADMIN (Server-Side using Env Var)
+    // We use 'await' here so Vercel doesn't kill the process before the email sends
+    const webhookUrl = process.env.N8N_DELETE_WEBHOOK;
+
+    if (webhookUrl) {
+      try {
+        await fetch(webhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "DELETE",
+            name: `${row["First Name"]} ${row.Surname}`,
+            email: row.Email,
+            reason: finalReason
+          }),
+        });
+      } catch (err) {
+        console.error("Delete alert failed:", err);
+        // We don't stop the request because the deletion itself was successful
+      }
+    } else {
+      console.warn("Skipping admin alert: N8N_DELETE_WEBHOOK not set");
+    }
 
     return NextResponse.json({ ok: true });
   } catch (e: any) {

@@ -435,6 +435,101 @@ export default function MeClient() {
     return !shallowEqualJSON({ row, preferredComm, theirStatus }, originalRef.current);
   }, [row, preferredComm, theirStatus]);
 
+// ✅ SMART SAVE FUNCTION (Sends only changed fields)
+  async function saveAll() {
+    if (!row) return;
+
+    setError(null);
+    setBanner(null);
+    setSaving(true);
+
+    // 1. Prepare the New Data
+    const payload: any = {
+      "First Name": row["First Name"],
+      Surname: row.Surname,
+      "Father's Name": row["Father's Name"],
+      "Mother's Name": row["Mother's Name"],
+      "Date of Birth": row["Date of Birth"],
+      City: row.City,
+      Country: row.Country,
+      Phone: row.Phone,
+      Email: row.Email,
+      "Preffered Communication": normalizeArr(preferredComm),
+      "Contact Name": row["Contact Name"],
+      "My languages": row["My languages"],
+      Gender: row.Gender,
+      Height: row.Height,
+      "My Community": row["My Community"],
+      "My Status": row["My Status"],
+      Children: row.Children,
+      "My Occupation": row["My Occupation"],
+      "Their Occupation": row["Their Occupation"],
+      "Their Community": row["Their Community"],
+      "Their Languages": row["Their Languages"],
+      "Their Status": normalizeArr(theirStatus),
+      "About Me": row["About Me"],
+      "About Them": row["About Them"],
+      References: row.References,
+      photo_path: row.photo_path ?? null,
+    };
+
+    // 2. Save to Supabase
+    const { error } = await supabase.from("intake_forms").update(payload).eq("id", row.id);
+
+    setSaving(false);
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    // 3. Calculate the "Diff" (What actually changed?)
+    const changesOnly: Record<string, any> = {};
+    
+    if (originalRef.current) {
+      Object.keys(payload).forEach((key) => {
+        const newValue = payload[key];
+        
+        // Retrieve old value correctly (handling the separate array states)
+        let oldValue = originalRef.current.row[key];
+        if (key === "Preffered Communication") oldValue = normalizeArr(originalRef.current.preferredComm);
+        if (key === "Their Status") oldValue = normalizeArr(originalRef.current.theirStatus);
+
+        // Compare using JSON stringify to handle arrays and nulls easily
+        if (JSON.stringify(newValue) !== JSON.stringify(oldValue)) {
+          changesOnly[key] = newValue;
+        }
+      });
+    } else {
+      // Fallback if something is weird, just send everything
+      Object.assign(changesOnly, payload);
+    }
+
+    // 4. Alert Admin (Only if there are changes)
+    if (Object.keys(changesOnly).length > 0) {
+      fetch("/api/notify-edit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "EDIT",
+          id: row.id,
+          name: `${row["First Name"]} ${row.Surname}`,
+          email: row.Email,
+          changes: changesOnly // ✅ Now sends only the specific updates!
+        }),
+      }).catch(err => console.error("Failed to notify admin of edit", err));
+    }
+
+    // 5. Update the "Original" reference to the new state
+    originalRef.current = {
+      row,
+      preferredComm,
+      theirStatus,
+    };
+
+    setBanner("Saved ✅");
+    setTimeout(() => setBanner(null), 2500);
+  }
 
   function resetChanges() {
     if (!originalRef.current) return;

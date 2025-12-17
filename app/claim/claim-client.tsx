@@ -1,6 +1,20 @@
 const handleConfirm = async () => {
   setMessage(null);
 
+ const [token, setToken] = useState<string | null>(null);
+
+const [sessionReady, setSessionReady] = useState(false);
+const [sessionMissing, setSessionMissing] = useState(false);
+
+const [loadingPreview, setLoadingPreview] = useState(false);
+const [preview, setPreview] = useState<IntakePreview | null>(null);
+
+// 👇 THIS WAS MISSING / MISNAMED
+const [message, setMessage] = useState<string | null>(null);
+
+const [confirming, setConfirming] = useState(false);
+
+
   if (!token) {
     setMessage("Missing or invalid token in URL.");
     return;

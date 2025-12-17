@@ -6,24 +6,26 @@ const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function POST(req: Request) {
   try {
+    if (!SERVICE_ROLE) {
+      return new NextResponse("Missing SUPABASE_SERVICE_ROLE_KEY", { status: 500 });
+    }
+
     const { manage_token } = await req.json();
     if (!manage_token) return new NextResponse("Missing manage_token", { status: 400 });
 
-    if (!SERVICE_ROLE) return new NextResponse("Missing SUPABASE_SERVICE_ROLE_KEY", { status: 500 });
-
     const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    const { data, error } = await supabaseAdmin
+    const { data: row, error } = await supabaseAdmin
       .from("intake_forms")
       .select("id, deleted_at")
       .eq("manage_token", manage_token)
       .maybeSingle();
 
     if (error) return new NextResponse(error.message, { status: 400 });
-    if (!data) return new NextResponse("Not found", { status: 404 });
-    if (data.deleted_at) return new NextResponse("Submission deleted", { status: 410 });
+    if (!row) return new NextResponse("Invalid or expired manage link", { status: 404 });
+    if (row.deleted_at) return new NextResponse("Submission deleted", { status: 410 });
 
-    return NextResponse.json({ id: data.id });
+    return NextResponse.json({ id: row.id });
   } catch (e: any) {
     return new NextResponse(e?.message ?? "Bad request", { status: 400 });
   }

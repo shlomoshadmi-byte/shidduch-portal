@@ -537,7 +537,7 @@ export default function MeClient() {
       const { error } = await supabase.from("intake_forms").update({ photo_path: path }).eq("id", row.id);
       if (error) throw error;
 
-      / ✅ ALERT ADMIN ABOUT PHOTO
+      // ✅ ALERT ADMIN ABOUT PHOTO
       fetch("https://lightrun.app.n8n.cloud/webhook/alert-edit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

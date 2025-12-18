@@ -11,7 +11,7 @@ export default async function DeletePage({ params }: Props) {
   // 2. Extract the token
   const token = resolvedParams.delete_token;
 
-  // 3. Pass it to the client component wrapped in the center layout
+  // 3. Pass it to the client component wrapped in the white card
   return (
     <main
       style={{
@@ -24,7 +24,20 @@ export default async function DeletePage({ params }: Props) {
         minHeight: "80vh",
       }}
     >
-      <DeleteClient deleteToken={token} />
+      {/* 👇 White Card Wrapper */}
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #e6e6e6",
+          borderRadius: 14,
+          padding: 32,
+          maxWidth: 600,       // A nice width for a form
+          width: "100%",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+        }}
+      >
+        <DeleteClient deleteToken={token} />
+      </div>
     </main>
   );
 }

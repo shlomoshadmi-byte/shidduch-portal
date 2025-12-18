@@ -5,36 +5,16 @@ export default function ClaimPage() {
   return (
     <main
       style={{
-        minHeight: "100vh",
         padding: 24,
         fontFamily: "sans-serif",
-        background: "#fafafa",
+        // 👇 These lines force everything to the center
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "flex-start", // Starts from top but centered horizontally
+        minHeight: "80vh",            // Ensures it has room to look nice
       }}
     >
-      {/* Brand header */}
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 24,
-        }}
-      >
-        <img
-          src="/binah_logo.png"
-          alt="Binah Shidduchim"
-          style={{ height: 56 }}
-        />
-        <div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>
-            Binah Shidduchim
-          </div>
-          <div style={{ fontSize: 13, color: "#666" }}>
-            Secure submission confirmation
-          </div>
-        </div>
-      </header>
-
       {/* Page content */}
       <Suspense fallback={<div>Working…</div>}>
         <ClaimClient />

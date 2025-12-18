@@ -1,6 +1,5 @@
 import ManageClient from "./manage-client";
 
-// Define the type for the params promise
 type Props = {
   params: Promise<{ manage_token: string }>;
 };
@@ -12,6 +11,21 @@ export default async function Page({ params }: Props) {
   // 2. Extract the token
   const token = resolvedParams.manage_token;
 
-  // 3. Pass it to the client component
-  return <ManageClient manageToken={token} />;
+  // 3. Pass it to the client component wrapped in the center layout
+  return (
+    <main
+      style={{
+        padding: 24,
+        fontFamily: "sans-serif",
+        // Center the content
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "flex-start",
+        minHeight: "80vh",
+      }}
+    >
+      <ManageClient manageToken={token} />
+    </main>
+  );
 }

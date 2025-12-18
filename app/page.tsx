@@ -1,71 +1,38 @@
 import Image from "next/image";
+import Link from "next/link";
 
 export default function Home() {
   return (
-    // Main Container
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4 font-sans text-black">
+    <main className="flex min-h-screen flex-col items-center justify-center p-24 text-center">
       
-      {/* Card */}
-      <div className="w-full max-w-lg rounded-2xl bg-white p-10 text-center shadow-xl">
-        
-        {/* Logo Section */}
-        <div className="mb-8 flex justify-center">
-          <Image
-            src="/binah_logo.png"
-            alt="Binah Shidduchim Logo"
-            width={200}
-            height={200}
-            className="object-contain"
-            priority
-          />
-        </div>
-
-        {/* Title & Subtitle */}
-        <h1 className="mb-2 text-3xl font-bold text-zinc-900">
-          Shidduch Gmach Binah
-        </h1>
-        <p className="mb-8 text-lg text-zinc-600">
-          Please select a language to submit a new profile.
-        </p>
-
-        {/* Buttons */}
-        <div className="flex flex-col gap-4">
-          <a
-            href="https://forms.shidduch-gmach.org/english"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full rounded-xl bg-black py-4 text-lg font-semibold text-white transition hover:bg-zinc-800"
-          >
-            English Form
-          </a>
-
-          <a
-            href="https://forms.shidduch-gmach.org/hebrew"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full rounded-xl border-2 border-black bg-white py-4 text-lg font-semibold text-black transition hover:bg-zinc-50"
-          >
-            טופס בעברית (Hebrew Form)
-          </a>
-        </div>
-
-        {/* Divider */}
-        <hr className="my-8 border-zinc-200" />
-
-        {/* Existing Users Note */}
-        <div className="text-zinc-600">
-          <h3 className="mb-2 text-sm font-bold uppercase tracking-wider text-zinc-400">
-            Already submitted a profile?
-          </h3>
-          <p className="mb-2 text-sm leading-relaxed">
-            To <strong>edit</strong> or <strong>delete</strong> your submission, please click the
-            unique &quot;Manage&quot; link found in the confirmation email we sent you.
-          </p>
-          <p className="text-xs italic text-zinc-400">
-            (We do not use passwords—your email link is your secure access key.)
-          </p>
-        </div>
+      {/* 1. The Big Hero Logo */}
+      <div className="relative flex place-items-center mb-8">
+        <Image
+          className="relative drop-shadow-[0_0_0.3rem_#ffffff70]"
+          src="/heart-logo.png"
+          alt="Shidduch Gmach Logo"
+          width={250}  // Bigger than the header logo
+          height={250}
+          priority
+        />
       </div>
-    </div>
+
+      {/* 2. Welcome Text */}
+      <h1 className="text-4xl font-bold mb-4 text-black">
+        Welcome to the Portal
+      </h1>
+      
+      <p className="mb-8 text-lg max-w-2xl text-gray-700">
+        Please verify your details and manage your shidduch profile securely.
+      </p>
+
+      {/* 3. The "Call to Action" Button */}
+      <Link href="/me"> 
+        <button className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full transition-all shadow-lg text-lg">
+          Go to My Profile →
+        </button>
+      </Link>
+
+    </main>
   );
 }

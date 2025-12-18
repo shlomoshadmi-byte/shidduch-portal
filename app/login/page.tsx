@@ -5,47 +5,33 @@ export default function LoginPage() {
   return (
     <main
       style={{
-        minHeight: "100vh",
         padding: 24,
         fontFamily: "sans-serif",
-        background: "#fafafa",
+        // Center the content
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "flex-start",
+        minHeight: "80vh",
       }}
     >
-      {/* Brand header */}
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 32,
-        }}
-      >
-        <img
-          src="/binah_logo.png"
-          alt="Binah Shidduchim"
-          style={{ height: 56 }}
-        />
-        <div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>
-            Binah Shidduchim
-          </div>
-          <div style={{ fontSize: 13, color: "#666" }}>
-            Secure login
-          </div>
-        </div>
-      </header>
-
       {/* Content card */}
       <div
         style={{
           background: "#fff",
           border: "1px solid #e6e6e6",
           borderRadius: 14,
-          padding: 24,
+          padding: 32,
           maxWidth: 480,
+          width: "100%",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
         }}
       >
-        <Suspense fallback={<div>Loading…</div>}>
+        <h1 style={{ marginTop: 0, fontSize: "24px", textAlign: "center", marginBottom: "24px" }}>
+          Secure Login
+        </h1>
+
+        <Suspense fallback={<div style={{ textAlign: "center" }}>Loading…</div>}>
           <LoginClient />
         </Suspense>
       </div>

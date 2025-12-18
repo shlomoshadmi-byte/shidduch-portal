@@ -5,46 +5,34 @@ export default function MePage() {
   return (
     <main
       style={{
-        minHeight: "100vh",
         padding: 24,
         fontFamily: "sans-serif",
-        background: "#fafafa",
+        // Center the content on the page
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "flex-start",
+        minHeight: "80vh",
       }}
     >
-      {/* Brand header */}
-     <header
-  style={{
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    textAlign: "center",
-    gap: 10,
-    marginBottom: 24,
-  }}
->
-  <img
-    src="/binah_logo.png"
-    alt="Binah Shidduchim"
-    style={{
-      height: 110,       // bigger
-      width: "auto",
-      maxWidth: "90vw",  // mobile-safe
-    }}
-  />
-
-  <div>
-    <div style={{ fontSize: 22, fontWeight: 800 }}>Binah Shidduchim</div>
-    <div style={{ fontSize: 13, color: "#666", marginTop: 2 }}>
-      Manage your submission
-    </div>
-  </div>
-</header>
-
-
-      {/* Page content */}
-      <Suspense fallback={<div>Loading…</div>}>
-        <MeClient />
-      </Suspense>
+      {/* 👇 THE WHITE CARD CONTAINER 
+         This puts a clean white box behind your form so it's easy to read.
+      */}
+      <div
+        style={{
+          background: "#fff",            // White background behind text
+          border: "1px solid #e6e6e6",
+          borderRadius: 14,
+          padding: 32,
+          maxWidth: 800,                 // Wider than login, good for forms
+          width: "100%",                 // Responsive
+          boxShadow: "0 4px 12px rgba(0,0,0,0.08)", // Pop-out effect
+        }}
+      >
+        <Suspense fallback={<div style={{ textAlign: "center" }}>Loading your profile…</div>}>
+          <MeClient />
+        </Suspense>
+      </div>
     </main>
   );
 }

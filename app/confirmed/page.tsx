@@ -2,51 +2,36 @@ export default function ConfirmedPage() {
   return (
     <main
       style={{
-        minHeight: "100vh",
         padding: 24,
         fontFamily: "sans-serif",
-        background: "#fafafa",
+        // Center everything
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "flex-start",
+        minHeight: "80vh",
       }}
     >
-      {/* Brand header */}
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 32,
-        }}
-      >
-        <img
-          src="/binah_logo.png"
-          alt="Binah Shidduchim"
-          style={{ height: 56 }}
-        />
-        <div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>
-            Binah Shidduchim
-          </div>
-          <div style={{ fontSize: 13, color: "#666" }}>
-            Submission confirmation
-          </div>
-        </div>
-      </header>
-
       {/* Content card */}
       <div
         style={{
           background: "#fff",
           border: "1px solid #e6e6e6",
           borderRadius: 14,
-          padding: 24,
+          padding: 32, 
           maxWidth: 680,
+          width: "100%", 
+          textAlign: "center", // Center text inside the card
+          boxShadow: "0 4px 12px rgba(0,0,0,0.08)", // Nice shadow effect
         }}
       >
-        <h1 style={{ marginTop: 0 }}>✅ Submission confirmed</h1>
+        <h1 style={{ marginTop: 0, fontSize: "24px" }}>✅ Submission confirmed</h1>
 
-        <p>Your submission is now linked to your account.</p>
+        <p style={{ fontSize: "18px", margin: "20px 0" }}>
+          Your submission is now linked to your account.
+        </p>
 
-        <p style={{ color: "#555" }}>
+        <p style={{ color: "#555", lineHeight: "1.6" }}>
           You will shortly receive another email with a permanent link to manage
           and update your submission.
         </p>

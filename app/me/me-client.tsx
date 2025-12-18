@@ -366,43 +366,24 @@ export default function MeClient() {
         .eq("id", id)
         .maybeSingle();
 
-      if (error) {
+        if (error) {
         setError(error.message);
-        setLoading(false);
-        return;
+      } else if (!data) {
+        setError("Submission not found (or access denied).");
+      } else {
+        // 1. Set the form data
+        setRow(data);
+        setPreferredComm(normalizeArr(data["Preffered Communication"]));
+        setTheirStatus(normalizeArr(data["Their Status"]));
+
+        // ✅ 2. SAVE THE SNAPSHOT (This fixes the "Email shows everything" bug)
+        // We save a clean copy of what we just downloaded to compare against later.
+        originalRef.current = {
+            row: data,
+            preferredComm: normalizeArr(data["Preffered Communication"]),
+            theirStatus: normalizeArr(data["Their Status"])
+        };
       }
-
-      if (!data) {
-        setError("This submission isn't available to your account yet. Make sure you confirmed THIS submission first.");
-        setLoading(false);
-        return;
-      }
-
-      if (!data.user_id) {
-        setError("This submission has not been confirmed yet. Use the Confirm submission link first.");
-        setLoading(false);
-        return;
-      }
-
-      if (data.deleted_at) {
-        setError("This submission was deleted and can no longer be edited.");
-        setLoading(false);
-        return;
-      }
-
-      const r = data as IntakeForm;
-      setRow(r);
-
-      const pc = r["Preffered Communication"] ?? [];
-      const ts = r["Their Status"] ?? [];
-      setPreferredComm(pc);
-      setTheirStatus(ts);
-
-      originalRef.current = {
-        row: r,
-        preferredComm: pc,
-        theirStatus: ts,
-      };
 
       setLoading(false);
     }

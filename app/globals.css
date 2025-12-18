@@ -20,7 +20,14 @@
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* The Background Image */
+  background-image: url('/site-bg.jpg'); /* 👈 Match your filename exactly */
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  
+  /* Fallback color just in case */
+  background-color: #f0f4f8; 
+  min-height: 100vh;
 }

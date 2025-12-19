@@ -343,11 +343,8 @@ export default function MeClient() {
         return;
       }
 
-      const { data: auth } = await supabase.auth.getUser();
-      if (!auth.user) {
-        window.location.href = `/login?next=${encodeURIComponent(`/me?id=${id}`)}`;
-        return;
-      }
+      router.replace(`/me?id=${encodeURIComponent(data.id)}&from=manage`);
+
 
       const { data, error } = await supabase
         .from("intake_forms")

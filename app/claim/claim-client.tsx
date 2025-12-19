@@ -15,39 +15,18 @@ export default function ClaimClient() {
   const router = useRouter();
 
   const [token, setToken] = useState<string | null>(null);
-
-  const [sessionReady, setSessionReady] = useState(false);
-  const [sessionMissing, setSessionMissing] = useState(false);
-
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [preview, setPreview] = useState<IntakePreview | null>(null);
 
   const [message, setMessage] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
 
-  // read token from URL
+  // 1. Just read the token. No Auth check needed.
   useEffect(() => {
     const url = new URL(window.location.href);
     const rawToken = url.searchParams.get("token");
     const t = rawToken ? rawToken.replace(/ /g, "+") : null;
     setToken(!t || t === "undefined" ? null : t);
-  }, []);
-
-  // check session (must be logged in after /auth/finish)
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      const session = data.session;
-
-      if (!session) {
-        setSessionMissing(true);
-        setSessionReady(true);
-        return;
-      }
-
-      setSessionMissing(false);
-      setSessionReady(true);
-    })();
   }, []);
 
   const fullName = useMemo(() => {
@@ -57,15 +36,16 @@ export default function ClaimClient() {
     return name || "your submission";
   }, [preview]);
 
-  // optional preview
+  // 2. Load preview if token exists (Public)
   useEffect(() => {
-    if (!sessionReady || sessionMissing) return;
     if (!token) return;
 
     setLoadingPreview(true);
     setPreview(null);
 
     (async () => {
+      // Note: If RLS prevents public reading, this might return null. 
+      // That is okay, we just won't show the name.
       const { data, error } = await supabase
         .from("intake_forms")
         .select(`id, user_id, "First Name", "Surname"`)
@@ -84,9 +64,8 @@ export default function ClaimClient() {
 
       setPreview(data as IntakePreview);
     })();
-  }, [token, sessionReady, sessionMissing]);
+  }, [token]);
 
-  // ✅ MUST be declared AFTER the useState hooks above
   const handleConfirm = async () => {
     setMessage(null);
 
@@ -99,7 +78,7 @@ export default function ClaimClient() {
     setConfirming(true);
 
     try {
-      // 1) Claim + get manage_token from RPC (Option A)
+      // 1) Claim publically using the token
       const { data, error } = await supabase.rpc("claim_profile_v2", { token });
 
       if (error) {
@@ -122,7 +101,7 @@ export default function ClaimClient() {
         return;
       }
 
-      // 2) Send Email #2 (server route uses service role)
+      // 2) Send Email #2
       const res = await fetch("/api/send-manage-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -147,47 +126,32 @@ export default function ClaimClient() {
 
   if (!token) {
     return (
-      <main style={{ padding: 24, fontFamily: "sans-serif" }}>
+      <div style={{ padding: 24, fontFamily: "sans-serif", textAlign: "center" }}>
         <h1>Confirm submission</h1>
         <p style={{ color: "crimson" }}>Missing or invalid token in URL.</p>
-      </main>
+      </div>
     );
   }
 
-  if (!sessionReady) {
-    return (
-      <main style={{ padding: 24, fontFamily: "sans-serif" }}>
-        <h1>Confirm submission</h1>
-        <p>Loading…</p>
-      </main>
-    );
-  }
-
-  if (sessionMissing) {
-    return (
-      <main style={{ padding: 24, fontFamily: "sans-serif" }}>
-        <h1>Confirm submission</h1>
-        <p>Not logged in yet. Please click the magic link again.</p>
-      </main>
-    );
-  }
-
+  // ✅ No "Not Logged In" check anymore. Everyone sees this:
   return (
-    <main style={{ padding: 24, fontFamily: "sans-serif", maxWidth: 680 }}>
-      <div style={{ marginBottom: 12 }}>
+    <div style={{ width: "100%" }}>
+      <div style={{ marginBottom: 12, textAlign: "center" }}>
         <div style={{ fontWeight: 700, fontSize: 18 }}>Shidduch Gmach</div>
       </div>
 
-      <h1 style={{ marginBottom: 8 }}>Confirm submission</h1>
+      <h1 style={{ marginBottom: 8, textAlign: "center" }}>Confirm submission</h1>
 
-      <p style={{ marginTop: 0 }}>
+      <p style={{ marginTop: 0, textAlign: "center" }}>
         We received a submission for <b>{loadingPreview ? "…" : fullName}</b>.
         <br />
         Please confirm that you submitted it.
       </p>
 
       {message ? (
-        <div style={{ marginTop: 12, padding: 12, border: "1px solid #ddd", background: "#fafafa" }}>{message}</div>
+        <div style={{ marginTop: 12, padding: 12, border: "1px solid #ddd", background: "#fafafa", borderRadius: 8 }}>
+          {message}
+        </div>
       ) : null}
 
       <button
@@ -195,19 +159,23 @@ export default function ClaimClient() {
         onClick={handleConfirm}
         disabled={confirming}
         style={{
-          marginTop: 16,
-          padding: "10px 14px",
+          marginTop: 24,
+          width: "100%",
+          padding: "12px",
+          borderRadius: 8,
           border: "1px solid black",
-          background: confirming ? "#eee" : "#fff",
+          background: confirming ? "#eee" : "#000",
+          color: confirming ? "#555" : "#fff",
+          fontWeight: "bold",
           cursor: confirming ? "default" : "pointer",
         }}
       >
         {confirming ? "Confirming…" : "Confirm submission"}
       </button>
 
-      <p style={{ marginTop: 16, fontSize: 13, color: "#555" }}>
+      <p style={{ marginTop: 16, fontSize: 13, color: "#555", textAlign: "center" }}>
         After confirmation, you will receive another email with a permanent link to manage and update your submission.
       </p>
-    </main>
+    </div>
   );
 }

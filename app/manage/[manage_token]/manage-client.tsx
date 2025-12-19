@@ -2,12 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 
 export default function ManageClient({ manageToken }: { manageToken: string }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const [isDeleted, setIsDeleted] = useState(false); // New state for deleted profiles
+  const [isDeleted, setIsDeleted] = useState(false);
 
   const ranRef = useRef(false);
 
@@ -31,7 +30,7 @@ export default function ManageClient({ manageToken }: { manageToken: string }) {
           body: JSON.stringify({ manage_token: token }),
         });
 
-        // 1. Handle API Errors (like 404 or 500)
+        // 1. Handle API Errors
         if (!res.ok) {
           const text = await res.text();
           setError(text || `Failed to load (${res.status})`);
@@ -65,40 +64,53 @@ export default function ManageClient({ manageToken }: { manageToken: string }) {
   // --- VIEW 1: SUBMISSION DELETED ---
   if (isDeleted) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4 font-sans text-black">
-        <div className="w-full max-w-lg rounded-2xl bg-white p-10 text-center shadow-xl">
-          
-          <div className="mb-6 flex justify-center">
-             {/* Uses your existing logo */}
-             <Image src="/binah_logo.png" alt="Logo" width={120} height={120} className="object-contain" priority />
-          </div>
+      <div style={{ textAlign: "center", width: "100%" }}>
+        <h1 style={{ color: "#d93025", fontSize: "24px", marginTop: 0, marginBottom: "16px" }}>
+          Submission Deleted
+        </h1>
+        <p style={{ fontSize: "16px", color: "#555", marginBottom: "24px", lineHeight: "1.5" }}>
+          This submission has been deleted. If you would like to rejoin, please submit a new form below.
+        </p>
 
-          <h1 className="mb-4 text-2xl font-bold text-red-600">
-            Submission Deleted
-          </h1>
-          <p className="mb-8 text-lg text-zinc-600">
-            This submission has been deleted. If you would like to rejoin, please submit a new form below.
-          </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <a
+            href="https://forms.shidduch-gmach.org/english"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "block",
+              width: "100%",
+              padding: "14px",
+              background: "#000",
+              color: "#fff",
+              textDecoration: "none",
+              borderRadius: "12px",
+              fontWeight: "bold",
+              fontSize: "16px",
+            }}
+          >
+            Submit New (English)
+          </a>
 
-          <div className="flex flex-col gap-4">
-            <a
-              href="https://forms.shidduch-gmach.org/english"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block w-full rounded-xl bg-black py-4 text-lg font-semibold text-white transition hover:bg-zinc-800"
-            >
-              Submit New (English)
-            </a>
-
-            <a
-              href="https://forms.shidduch-gmach.org/hebrew"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block w-full rounded-xl border-2 border-black bg-white py-4 text-lg font-semibold text-black transition hover:bg-zinc-50"
-            >
-              Submit New (Hebrew)
-            </a>
-          </div>
+          <a
+            href="https://forms.shidduch-gmach.org/hebrew"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "block",
+              width: "100%",
+              padding: "14px",
+              background: "#fff",
+              color: "#000",
+              textDecoration: "none",
+              borderRadius: "12px",
+              fontWeight: "bold",
+              fontSize: "16px",
+              border: "2px solid #000",
+            }}
+          >
+            Submit New (Hebrew)
+          </a>
         </div>
       </div>
     );
@@ -107,18 +119,16 @@ export default function ManageClient({ manageToken }: { manageToken: string }) {
   // --- VIEW 2: ERROR ---
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
-        <div className="max-w-md rounded-lg bg-white p-8 shadow text-center">
-          <h2 className="text-xl font-bold text-red-600 mb-2">Access Error</h2>
-          <p className="text-zinc-700">{error}</p>
-        </div>
+      <div style={{ textAlign: "center", color: "crimson", padding: 20 }}>
+        <h2 style={{ fontSize: "18px", marginBottom: 8 }}>Access Error</h2>
+        {error}
       </div>
     );
   }
 
   // --- VIEW 3: LOADING ---
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans text-zinc-500">
+    <div style={{ textAlign: "center", padding: 20, color: "#666" }}>
       Opening your submission...
     </div>
   );

@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
 const PHOTO_BUCKET = "intake-photos";
-const LOGO_SRC = "/binah_logo.png"; 
+const LOGO_SRC = "/binah_logo.png";
+
 
 type IntakeForm = {
   id: string;
@@ -314,6 +315,7 @@ function ChipMultiSelect({
 }
 
 export default function MeClient() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
 
@@ -343,9 +345,7 @@ export default function MeClient() {
         return;
       }
 
-      router.replace(`/me?id=${encodeURIComponent(data.id)}&from=manage`);
-
-
+      
       const { data, error } = await supabase
         .from("intake_forms")
         .select(

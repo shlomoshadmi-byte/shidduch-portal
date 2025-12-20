@@ -7,6 +7,14 @@ import { supabase } from "../../lib/supabaseClient";
 // --- HELPERS ---
 const PHOTO_BUCKET = "intake-photos";
 
+// Detects if text contains Hebrew characters
+function detectDir(text: string) {
+  if (!text) return "ltr";
+  // Range of Hebrew characters
+  const hasHebrew = /[\u0590-\u05FF]/.test(text);
+  return hasHebrew ? "rtl" : "ltr";
+}
+
 function Detail({ label, value }: { label: string; value: any }) {
   if (!value || (Array.isArray(value) && value.length === 0)) return null;
   const display = Array.isArray(value) ? value.join(", ") : value;
@@ -36,7 +44,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-// 1. THE MAIN CONTENT COMPONENT (Internal)
+// 1. THE MAIN CONTENT COMPONENT
 function ResumeContent() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
@@ -64,7 +72,7 @@ function ResumeContent() {
     load();
   }, [id]);
 
-  // Generate WhatsApp Text
+  // Generate WhatsApp Text (Public Summary Only)
   const copyToWhatsApp = () => {
     if (!data) return;
     const text = `
@@ -74,13 +82,10 @@ function ResumeContent() {
 *Age:* ${data["Date of Birth"]}
 *Location:* ${data["City"]}, ${data["Country"]}
 *Community:* ${data["My Community"]}
-*Status:* ${data["My Status"]}
+*Occupation:* ${data["My Occupation"]}
 
 *About:*
 ${data["About Me"] || "N/A"}
-
-*Looking For:*
-${data["About Them"] || "N/A"}
 
 *Reference:*
 ${data["References"] || "Upon request"}
@@ -153,10 +158,9 @@ ${data["References"] || "Upon request"}
             {data["First Name"]} {data["Surname"]}
           </h1>
           <div style={{ fontSize: 16, color: "#555", lineHeight: 1.6 }}>
+            {/* ✅ SIMPLIFIED HEADER: Only Location & DOB */}
             <div>📍 {data["City"]}, {data["Country"]}</div>
             <div>🎂 Born: {data["Date of Birth"]}</div>
-            <div>🕍 {data["My Community"]}</div>
-            <div>💼 {data["My Occupation"]}</div>
           </div>
         </div>
       </div>
@@ -168,9 +172,13 @@ ${data["References"] || "Upon request"}
             <Detail label="Height" value={data["Height"]} />
             <Detail label="Father" value={data["Father's Name"]} />
             <Detail label="Mother" value={data["Mother's Name"]} />
+            {/* ✅ Added Community Here */}
+            <Detail label="Community" value={data["My Community"]} />
           </div>
           <div>
             <Detail label="Status" value={data["My Status"]} />
+            {/* ✅ Added Occupation Here */}
+            <Detail label="Occupation" value={data["My Occupation"]} />
             <Detail label="Languages" value={data["My languages"]} />
             <Detail label="Children" value={data["Children"]} />
           </div>
@@ -178,29 +186,26 @@ ${data["References"] || "Upon request"}
       </Section>
 
       <Section title="About Me">
-        <p style={{ whiteSpace: "pre-wrap", marginTop: 0 }}>{data["About Me"]}</p>
+        {/* ✅ AUTO RTL DETECTION */}
+        <p 
+          dir={detectDir(data["About Me"])}
+          style={{ 
+            whiteSpace: "pre-wrap", 
+            marginTop: 0,
+            textAlign: detectDir(data["About Me"]) === "rtl" ? "right" : "left"
+          }}
+        >
+          {data["About Me"]}
+        </p>
       </Section>
 
-      <Section title="What I am Looking For">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-          <Detail label="Target Age" value={data["Age Range"] ?? "Any"} />
-          <Detail label="Community" value={data["Their Community"]} />
-          <Detail label="Occupation" value={data["Their Occupation"]} />
-          <Detail label="Status" value={data["Their Status"]} />
-        </div>
-        <p style={{ whiteSpace: "pre-wrap", marginTop: 0 }}>{data["About Them"]}</p>
-      </Section>
-
+      {/* ❌ REMOVED: "What I am Looking For" Section */}
+      
       <Section title="References">
         <p style={{ whiteSpace: "pre-wrap", marginTop: 0 }}>{data["References"]}</p>
       </Section>
 
-      <Section title="Contact Info">
-        <Detail label="Contact Person" value={data["Contact Name"]} />
-        <Detail label="Phone" value={data["Phone"]} />
-        <Detail label="Email" value={data["Email"]} />
-        <Detail label="Preferred" value={data["Preffered Communication"]} />
-      </Section>
+      {/* ❌ REMOVED: "Contact Info" Section */}
 
       <style jsx global>{`
         @media print {
@@ -213,7 +218,7 @@ ${data["References"] || "Upon request"}
   );
 }
 
-// 2. THE EXPORTED PAGE WRAPPER (This fixes the build error)
+// 2. THE EXPORTED PAGE WRAPPER
 export default function ViewResumePage() {
   return (
     <Suspense fallback={<div style={{ padding: 40, textAlign: "center" }}>Loading Resume...</div>}>

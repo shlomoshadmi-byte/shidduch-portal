@@ -27,7 +27,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
         marginBottom: 12, 
         color: "#0052cc",
         fontSize: 18,
-        uppercase: "uppercase"
+        textTransform: "uppercase" // ✅ Correct
       }}>
         {title}
       </h3>

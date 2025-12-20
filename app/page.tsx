@@ -1,38 +1,107 @@
-import Image from "next/image";
-import Link from "next/link";
+import React from "react";
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24 text-center">
-      
-      {/* 1. The Big Hero Logo */}
-      <div className="relative flex place-items-center mb-8">
-        <Image
-          className="relative drop-shadow-[0_0_0.3rem_#ffffff70]"
+    <main
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        fontFamily: "sans-serif",
+        // ✅ Your Background Image
+        backgroundImage: 'url("/site-bg.jpg")',
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
+      {/* Semi-transparent Glass Card */}
+      <div
+        style={{
+          background: "rgba(255, 255, 255, 0.95)", // White with slight transparency
+          backdropFilter: "blur(10px)",
+          padding: "48px 32px",
+          borderRadius: 24,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+          maxWidth: 480,
+          width: "100%",
+          textAlign: "center",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 24,
+        }}
+      >
+        {/* ✅ One Heart Logo in the Middle */}
+        <img
           src="/heart-logo.png"
-          alt="Shidduch Gmach Logo"
-          width={250}  // Bigger than the header logo
-          height={250}
-          priority
+          alt="Binah Shidduchim"
+          style={{ 
+            width: 140, 
+            height: "auto", 
+            marginBottom: 8 
+          }}
         />
+
+        <div>
+          <h1 style={{ margin: 0, fontSize: "26px", color: "#333", fontWeight: 800 }}>
+            Welcome
+          </h1>
+          <p style={{ margin: "12px 0 0", color: "#666", lineHeight: 1.5 }}>
+            Please select your preferred language to submit a profile.
+          </p>
+        </div>
+
+        {/* 🇺🇸 BUTTON 1: English Form */}
+        <a
+          href="https://forms.shidduch-gmach.org/english"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "block",
+            width: "100%",
+            padding: "16px",
+            background: "#0052cc", // Blue
+            color: "white",
+            textDecoration: "none",
+            borderRadius: 12,
+            fontWeight: "bold",
+            fontSize: "16px",
+            boxShadow: "0 4px 12px rgba(0,82,204,0.3)",
+          }}
+        >
+          Submit Profile (English)
+        </a>
+
+        {/* 🇮🇱 BUTTON 2: Hebrew Form */}
+        <a
+          href="https://forms.shidduch-gmach.org/hebrew"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "block",
+            width: "100%",
+            padding: "16px",
+            background: "#fff",
+            color: "#0052cc",
+            border: "2px solid #0052cc",
+            textDecoration: "none",
+            borderRadius: 12,
+            fontWeight: "bold",
+            fontSize: "16px",
+          }}
+        >
+          הגשת פרופיל (עברית)
+        </a>
+
+        <p style={{ fontSize: 13, color: "#999", marginTop: 12 }}>
+          Already have a profile? Check your email for your personal manage link.
+        </p>
+
       </div>
-
-      {/* 2. Welcome Text */}
-      <h1 className="text-4xl font-bold mb-4 text-black">
-        Welcome to the Portal
-      </h1>
-      
-      <p className="mb-8 text-lg max-w-2xl text-gray-700">
-        Please verify your details and manage your shidduch profile securely.
-      </p>
-
-      {/* 3. The "Call to Action" Button */}
-      <Link href="/me"> 
-        <button className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full transition-all shadow-lg text-lg">
-          Go to My Profile →
-        </button>
-      </Link>
-
     </main>
   );
 }

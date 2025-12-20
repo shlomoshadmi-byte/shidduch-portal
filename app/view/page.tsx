@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
@@ -27,7 +27,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
         marginBottom: 12, 
         color: "#0052cc",
         fontSize: 18,
-        textTransform: "uppercase" // ✅ Correct
+        textTransform: "uppercase" 
       }}>
         {title}
       </h3>
@@ -36,7 +36,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export default function ViewResumePage() {
+// 1. THE MAIN CONTENT COMPONENT (Internal)
+function ResumeContent() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
 
@@ -44,7 +45,7 @@ export default function ViewResumePage() {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 1. Fetch Data
+  // Fetch Data
   useEffect(() => {
     if (!id) return;
     async function load() {
@@ -63,7 +64,7 @@ export default function ViewResumePage() {
     load();
   }, [id]);
 
-  // 2. Generate WhatsApp Text
+  // Generate WhatsApp Text
   const copyToWhatsApp = () => {
     if (!data) return;
     const text = `
@@ -201,7 +202,6 @@ ${data["References"] || "Upon request"}
         <Detail label="Preferred" value={data["Preffered Communication"]} />
       </Section>
 
-      {/* Print-only CSS to hide the buttons */}
       <style jsx global>{`
         @media print {
           .no-print { display: none !important; }
@@ -209,7 +209,15 @@ ${data["References"] || "Upon request"}
           main { padding: 0; margin: 0; }
         }
       `}</style>
-
     </div>
+  );
+}
+
+// 2. THE EXPORTED PAGE WRAPPER (This fixes the build error)
+export default function ViewResumePage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: "center" }}>Loading Resume...</div>}>
+      <ResumeContent />
+    </Suspense>
   );
 }

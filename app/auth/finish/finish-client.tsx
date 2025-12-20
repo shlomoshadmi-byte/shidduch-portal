@@ -19,7 +19,9 @@ export default function FinishClient() {
           path.startsWith("/claim") || 
           path.startsWith("/manage") || 
           path.startsWith("/verify") || 
-          path.startsWith("/portal")
+          path.startsWith("/portal") ||
+          path.startsWith("/me") ||     // 👈 ADDED: For old Manage links
+          path.startsWith("/delete")    // 👈 ADDED: For Delete links
         );
       };
 

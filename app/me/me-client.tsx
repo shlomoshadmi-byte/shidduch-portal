@@ -7,7 +7,6 @@ import { supabase } from "../../lib/supabaseClient";
 const PHOTO_BUCKET = "intake-photos";
 const LOGO_SRC = "/binah_logo.png";
 
-
 type IntakeForm = {
   id: string;
   created_at: string | null;
@@ -70,14 +69,8 @@ function detectDir(value: string) {
   return "ltr";
 }
 
-// ✅ SIMPLIFIED SECTION (No Save Button)
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+// ✅ UI COMPONENTS (Kept exactly as you had them)
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div
       style={{
@@ -96,15 +89,7 @@ function Section({
   );
 }
 
-function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <label style={{ display: "block", marginTop: 12 }}>
       <div style={{ fontSize: 12, marginBottom: 6, color: "#222" }}>
@@ -314,10 +299,11 @@ function ChipMultiSelect({
   );
 }
 
+// ✅ MAIN CLIENT COMPONENT
 export default function MeClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const id = searchParams.get("id");
+  const id = searchParams.get("id"); // 👈 GET ID FROM URL
 
   const [loading, setLoading] = useState(true);
   const [row, setRow] = useState<IntakeForm | null>(null);
@@ -345,7 +331,7 @@ export default function MeClient() {
         return;
       }
 
-      
+      // 🔓 PUBLIC FETCH (Allowed by RLS policy 'to anon')
       const { data, error } = await supabase
         .from("intake_forms")
         .select(
@@ -363,7 +349,7 @@ export default function MeClient() {
         .eq("id", id)
         .maybeSingle();
 
-        if (error) {
+      if (error) {
         setError(error.message);
       } else if (!data) {
         setError("Submission not found (or access denied).");
@@ -373,12 +359,11 @@ export default function MeClient() {
         setPreferredComm(normalizeArr(data["Preffered Communication"]));
         setTheirStatus(normalizeArr(data["Their Status"]));
 
-        // ✅ 2. SAVE THE SNAPSHOT (This fixes the "Email shows everything" bug)
-        // We save a clean copy of what we just downloaded to compare against later.
+        // 2. Save snapshot for change tracking
         originalRef.current = {
-            row: data,
-            preferredComm: normalizeArr(data["Preffered Communication"]),
-            theirStatus: normalizeArr(data["Their Status"])
+          row: data,
+          preferredComm: normalizeArr(data["Preffered Communication"]),
+          theirStatus: normalizeArr(data["Their Status"]),
         };
       }
 
@@ -394,9 +379,11 @@ export default function MeClient() {
         setPhotoUrl(null);
         return;
       }
+      // Note: If bucket is public, we can just use getPublicUrl too.
+      // But createSignedUrl works for both public/private if RLS allows.
       const { data, error } = await supabase.storage
         .from(PHOTO_BUCKET)
-        .createSignedUrl(row.photo_path, 60 * 60); 
+        .createSignedUrl(row.photo_path, 60 * 60);
 
       if (error) {
         console.warn("Signed URL error:", error.message);
@@ -413,7 +400,7 @@ export default function MeClient() {
     return !shallowEqualJSON({ row, preferredComm, theirStatus }, originalRef.current);
   }, [row, preferredComm, theirStatus]);
 
-// ✅ SMART SAVE FUNCTION (Sends only changed fields)
+  // ✅ SMART SAVE (Public Update)
   async function saveAll() {
     if (!row) return;
 
@@ -421,7 +408,7 @@ export default function MeClient() {
     setBanner(null);
     setSaving(true);
 
-    // 1. Prepare the New Data
+    // 1. Prepare Payload (Note: We do NOT send user_id, protecting ownership)
     const payload: any = {
       "First Name": row["First Name"],
       Surname: row.Surname,
@@ -451,7 +438,7 @@ export default function MeClient() {
       photo_path: row.photo_path ?? null,
     };
 
-    // 2. Save to Supabase
+    // 2. Public Update via RLS
     const { error } = await supabase.from("intake_forms").update(payload).eq("id", row.id);
 
     setSaving(false);
@@ -461,29 +448,24 @@ export default function MeClient() {
       return;
     }
 
-    // 3. Calculate the "Diff" (What actually changed?)
+    // 3. Diff Calculation
     const changesOnly: Record<string, any> = {};
-    
     if (originalRef.current) {
       Object.keys(payload).forEach((key) => {
         const newValue = payload[key];
-        
-        // Retrieve old value correctly (handling the separate array states)
         let oldValue = originalRef.current.row[key];
         if (key === "Preffered Communication") oldValue = normalizeArr(originalRef.current.preferredComm);
         if (key === "Their Status") oldValue = normalizeArr(originalRef.current.theirStatus);
 
-        // Compare using JSON stringify to handle arrays and nulls easily
         if (JSON.stringify(newValue) !== JSON.stringify(oldValue)) {
           changesOnly[key] = newValue;
         }
       });
     } else {
-      // Fallback if something is weird, just send everything
       Object.assign(changesOnly, payload);
     }
 
-    // 4. Alert Admin (Only if there are changes)
+    // 4. Notify Admin
     if (Object.keys(changesOnly).length > 0) {
       fetch("/api/notify-edit", {
         method: "POST",
@@ -493,12 +475,12 @@ export default function MeClient() {
           id: row.id,
           name: `${row["First Name"]} ${row.Surname}`,
           email: row.Email,
-          changes: changesOnly // ✅ Now sends only the specific updates!
+          changes: changesOnly,
         }),
-      }).catch(err => console.error("Failed to notify admin of edit", err));
+      }).catch((err) => console.error("Failed to notify admin of edit", err));
     }
 
-    // 5. Update the "Original" reference to the new state
+    // 5. Update Snapshot
     originalRef.current = {
       row,
       preferredComm,
@@ -522,6 +504,7 @@ export default function MeClient() {
     setTimeout(() => setBanner(null), 1500);
   }
 
+  // ✅ PHOTO UPLOAD
   async function handlePhotoUpload(file: File) {
     if (!row) return;
     setError(null);
@@ -533,27 +516,29 @@ export default function MeClient() {
       const safeExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "jpg";
       const path = `${row.id}/photo.${safeExt}`;
 
+      // Upload to Storage
       const up = await supabase.storage
         .from(PHOTO_BUCKET)
         .upload(path, file, { upsert: true, contentType: file.type });
 
       if (up.error) throw up.error;
 
+      // Update DB Path
       const { error } = await supabase.from("intake_forms").update({ photo_path: path }).eq("id", row.id);
       if (error) throw error;
 
-      // ✅ ALERT ADMIN ABOUT PHOTO (Call our local API route)
-    fetch("/api/notify-edit", { // <--- Changed to local route
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "PHOTO_UPDATE",
-        id: row.id,
-        name: `${row["First Name"]} ${row.Surname}`,
-        email: row.Email,
-        changes: { photo_path: path }
-      }),
-    }).catch(err => console.error("Photo alert failed", err));
+      // Notify Admin
+      fetch("/api/notify-edit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "PHOTO_UPDATE",
+          id: row.id,
+          name: `${row["First Name"]} ${row.Surname}`,
+          email: row.Email,
+          changes: { photo_path: path },
+        }),
+      }).catch((err) => console.error("Photo alert failed", err));
 
       setRow({ ...row, photo_path: path });
       originalRef.current = {
@@ -661,9 +646,15 @@ export default function MeClient() {
 
       <div style={{ maxWidth: 920, margin: "0 auto" }}>
         <div style={{ fontSize: 12, color: "#777" }}>
-          <span><b>ID:</b> {row.id}</span>
-          <span style={{ marginLeft: 12 }}><b>Created:</b> {row.created_at ?? ""}</span>
-          <span style={{ marginLeft: 12 }}><b>Updated:</b> {row.updated_at ?? ""}</span>
+          <span>
+            <b>ID:</b> {row.id}
+          </span>
+          <span style={{ marginLeft: 12 }}>
+            <b>Created:</b> {row.created_at ?? ""}
+          </span>
+          <span style={{ marginLeft: 12 }}>
+            <b>Updated:</b> {row.updated_at ?? ""}
+          </span>
         </div>
 
         <Section title="Photo">
@@ -716,7 +707,9 @@ export default function MeClient() {
               />
             </label>
             {row.photo_path ? (
-              <div style={{ fontSize: 12, color: "#777" }}>Stored as: <code>{row.photo_path}</code></div>
+              <div style={{ fontSize: 12, color: "#777" }}>
+                Stored as: <code>{row.photo_path}</code>
+              </div>
             ) : null}
           </div>
         </Section>
@@ -790,13 +783,22 @@ export default function MeClient() {
 
         <Section title="Looking for">
           <Field label="Their Occupation">
-            <TextInput value={row["Their Occupation"] ?? ""} onChange={(v) => setRow({ ...row, ["Their Occupation"]: v })} />
+            <TextInput
+              value={row["Their Occupation"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["Their Occupation"]: v })}
+            />
           </Field>
           <Field label="Their Community">
-            <TextInput value={row["Their Community"] ?? ""} onChange={(v) => setRow({ ...row, ["Their Community"]: v })} />
+            <TextInput
+              value={row["Their Community"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["Their Community"]: v })}
+            />
           </Field>
           <Field label="Their Languages">
-            <TextInput value={row["Their Languages"] ?? ""} onChange={(v) => setRow({ ...row, ["Their Languages"]: v })} />
+            <TextInput
+              value={row["Their Languages"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["Their Languages"]: v })}
+            />
           </Field>
           <ChipMultiSelect
             label="Their Status"

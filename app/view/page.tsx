@@ -61,9 +61,6 @@ function ResumeContent() {
         .single();
 
       if (data) {
-        // 🚨 DEBUG: Look at your browser console to see the real column names!
-        console.log("🔍 FULL DB RECORD:", data); 
-        
         setData(data);
         if (data.photo_path) {
           const { data: url } = await supabase.storage
@@ -150,19 +147,17 @@ function ResumeContent() {
         </div>
       </Section>
 
-      {/* 🚨 SENSITIVE CONTACT INFO (Admin Only) */}
+      {/* 🚨 SENSITIVE CONTACT INFO (Corrected Column Names) */}
       <Section title="🔒 Contact Info (Admin Only)">
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, background: "#fff8e1", padding: 15, borderRadius: 8, border: "1px solid #ffe082" }}>
           <div>
-            {/* Try multiple common names for Mobile */}
-            <Detail label="Mobile" value={data["Mobile"] || data["Phone"] || data["Cell"] || data["phone_number"]} />
-            <Detail label="Alt Mobile" value={data["Mobile 2"] || data["Alt Phone"] || data["secondary_phone"]} />
+            {/* ✅ Mapped to 'Phone' and 'Email' from schema */}
+            <Detail label="Phone" value={data["Phone"]} />
             <Detail label="Email" value={data["Email"]} />
+            <Detail label="Contact Person" value={data["Contact Name"]} />
           </div>
           <div>
-             <Detail label="Mechutan Phone" value={data["Mechutan_Phone"] || data["In-Laws Phone"]} />
-             <Detail label="Ref 1 Phone" value={data["Reference_1_Phone"] || data["Ref1_Phone"]} />
-             <Detail label="Ref 2 Phone" value={data["Reference_2_Phone"] || data["Ref2_Phone"]} />
+             <Detail label="Preferred Comms" value={data["Preffered Communication"]} />
           </div>
         </div>
       </Section>
@@ -173,12 +168,14 @@ function ResumeContent() {
         </p>
       </Section>
 
-      <Section title="Looking For">
-        <p dir={detectDir(data["Looking For"])} style={{ whiteSpace: "pre-wrap", marginTop: 0, lineHeight: 1.6, textAlign: detectDir(data["Looking For"]) === "rtl" ? "right" : "left" }}>
-          {data["Looking For"]}
+      {/* Added 'About Them' since it exists in your schema */}
+      <Section title="Looking For (About Them)">
+        <p dir={detectDir(data["About Them"])} style={{ whiteSpace: "pre-wrap", marginTop: 0, lineHeight: 1.6, textAlign: detectDir(data["About Them"]) === "rtl" ? "right" : "left" }}>
+          {data["About Them"]}
         </p>
       </Section>
       
+      {/* Reference Phones are inside this text block */}
       <Section title="Full References">
         <p style={{ whiteSpace: "pre-wrap", marginTop: 0 }}>{data["References"]}</p>
       </Section>

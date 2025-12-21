@@ -7,6 +7,7 @@ import { supabase } from "../../lib/supabaseClient";
 // --- HELPERS ---
 const PHOTO_BUCKET = "intake-photos";
 
+// Detects if text contains Hebrew characters
 function detectDir(text: string) {
   if (!text) return "ltr";
   const hasHebrew = /[\u0590-\u05FF]/.test(text);
@@ -31,7 +32,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
         borderBottom: "2px solid #eee", 
         paddingBottom: 6, 
         marginBottom: 12, 
-        color: "#d32f2f", // Red color to remind you this is ADMIN view
+        color: "#0052cc",
         fontSize: 18,
         textTransform: "uppercase" 
       }}>
@@ -50,13 +51,22 @@ function ResumeContent() {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Fetch Data
   useEffect(() => {
     if (!id) return;
     async function load() {
-      // ✅ ADMIN VIEW: Fetch EVERYTHING (*)
-      const { data } = await supabase
+      // 🔒 SECURITY FIX: We ONLY select the fields we want to show.
+      // We explicitly DO NOT select "Phone", "Email", or "Last Name" if you want to be super anon.
+      const { data, error } = await supabase
         .from("intake_forms")
-        .select("*") 
+        .select(`
+          "First Name", "Surname", "Date of Birth", 
+          "City", "Country", "My Community", "My Occupation", 
+          "About Me", "References", "Height", 
+          "Father's Name", "Mother's Name", 
+          "My Status", "Children", "My languages", 
+          "photo_path"
+        `) // <--- ONLY THESE COLUMNS
         .eq("id", id)
         .single();
 
@@ -74,7 +84,30 @@ function ResumeContent() {
     load();
   }, [id]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: "center" }}>Loading Admin View...</div>;
+  // Generate WhatsApp Text
+  const copyToWhatsApp = () => {
+    if (!data) return;
+    // Note: We use First Name + Surname Initial for privacy
+    const text = `
+*Shidduch Profile Suggestion*
+------------------
+*Name:* ${data["First Name"]} ${data["Surname"] ? data["Surname"][0] + "." : ""}
+*Age:* ${data["Date of Birth"] || "N/A"}
+*Location:* ${data["City"]}, ${data["Country"]}
+*Community:* ${data["My Community"]}
+*Occupation:* ${data["My Occupation"]}
+
+*About:*
+${data["About Me"] || "N/A"}
+
+*Link to Full Profile:*
+${window.location.href}
+`.trim();
+    navigator.clipboard.writeText(text);
+    alert("Copied summary to clipboard!");
+  };
+
+  if (loading) return <div style={{ padding: 40, textAlign: "center" }}>Loading Profile...</div>;
   if (!data) return <div style={{ padding: 40, textAlign: "center" }}>Profile not found.</div>;
 
   return (
@@ -88,41 +121,66 @@ function ResumeContent() {
       minHeight: "100vh"
     }}>
       
-      {/* ADMIN BANNER */}
+      {/* 🖨️ CONTROLS (Hidden when printing) */}
       <div className="no-print" style={{ 
-        background: "#ffebee", 
-        color: "#c62828", 
-        padding: "10px", 
-        textAlign: "center", 
-        fontWeight: "bold", 
-        marginBottom: 20, 
-        borderRadius: 4 
+        display: "flex", 
+        gap: 12, 
+        marginBottom: 30, 
+        padding: 16, 
+        background: "#f0f7ff", 
+        borderRadius: 8,
+        border: "1px solid #cce5ff",
+        justifyContent: "space-between",
+        alignItems: "center"
       }}>
-        🔒 INTERNAL ADMIN VIEW (Contains Private Info)
-      </div>
-
-      <div className="no-print" style={{ marginBottom: 30, display: "flex", gap: 10 }}>
-         <button onClick={() => window.print()} style={{ padding: "8px 16px", cursor: "pointer" }}>🖨️ Print Admin Copy</button>
+        <span style={{fontWeight: "bold", color: "#0052cc"}}>📄 Public View</span>
+        <div style={{display: "flex", gap: 10}}>
+            <button 
+              onClick={() => window.print()} 
+              style={{ cursor: "pointer", padding: "8px 16px", fontWeight: "bold", border: "1px solid #ccc", borderRadius: 4, background: "white" }}
+            >
+              🖨️ Save as PDF
+            </button>
+            <button 
+              onClick={copyToWhatsApp} 
+              style={{ cursor: "pointer", padding: "8px 16px", fontWeight: "bold", border: "none", borderRadius: 4, background: "#25D366", color: "white" }}
+            >
+              📱 WhatsApp Summary
+            </button>
+        </div>
       </div>
 
       {/* HEADER */}
       <div style={{ display: "flex", gap: 24, marginBottom: 32, alignItems: "flex-start" }}>
-        <div style={{ width: 150, height: 150, borderRadius: 12, overflow: "hidden", background: "#f5f5f5", border: "1px solid #eee", flexShrink: 0 }}>
+        {/* Photo */}
+        <div style={{ 
+          width: 150, 
+          height: 150, 
+          borderRadius: 12, 
+          overflow: "hidden", 
+          background: "#f5f5f5", 
+          flexShrink: 0,
+          border: "1px solid #eee"
+        }}>
           {photoUrl ? (
             <img src={photoUrl} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           ) : (
-            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#999" }}>No Photo</div>
+            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#999", fontSize: 12 }}>
+              No Photo
+            </div>
           )}
         </div>
 
+        {/* Name & Basic Info */}
         <div style={{ flex: 1 }}>
           <h1 style={{ margin: "0 0 8px 0", fontSize: 32, color: "#222" }}>
             {data["First Name"]} {data["Surname"]}
           </h1>
           <div style={{ fontSize: 16, color: "#555", lineHeight: 1.6 }}>
             <div>📍 {data["City"]}, {data["Country"]}</div>
-            <div>🎂 DOB: {data["Date of Birth"]}</div>
-            <div style={{ marginTop: 6, fontWeight: "bold", color: "#d32f2f" }}>{data["My Community"]}</div>
+            {/* If you calculate Age in DB, use that. Otherwise use DOB */}
+            <div>🎂 Born: {data["Date of Birth"]}</div>
+            <div style={{marginTop: 5, fontWeight: "bold", color: "#0052cc"}}>{data["My Community"]}</div>
           </div>
         </div>
       </div>
@@ -144,41 +202,31 @@ function ResumeContent() {
         </div>
       </Section>
 
-      {/* 🚨 SENSITIVE CONTACT INFO (Only in Admin View) */}
-      <Section title="🔒 Contact Info (Admin Only)">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, background: "#fff8e1", padding: 10, borderRadius: 8 }}>
-          <div>
-            <Detail label="Mobile" value={data["Mobile"]} />
-            <Detail label="Alt Mobile" value={data["Mobile 2"]} />
-            <Detail label="Email" value={data["Email"]} />
-          </div>
-          <div>
-             <Detail label="Mechutan Phone" value={data["Mechutan_Phone"]} />
-             <Detail label="Ref 1 Phone" value={data["Reference_1_Phone"]} />
-             <Detail label="Ref 2 Phone" value={data["Reference_2_Phone"]} />
-          </div>
-        </div>
-      </Section>
-
       <Section title="About Me">
-        <p dir={detectDir(data["About Me"])} style={{ whiteSpace: "pre-wrap", marginTop: 0, lineHeight: 1.6, textAlign: detectDir(data["About Me"]) === "rtl" ? "right" : "left" }}>
+        <p 
+          dir={detectDir(data["About Me"])}
+          style={{ 
+            whiteSpace: "pre-wrap", 
+            marginTop: 0,
+            lineHeight: 1.6,
+            textAlign: detectDir(data["About Me"]) === "rtl" ? "right" : "left"
+          }}
+        >
           {data["About Me"]}
         </p>
       </Section>
 
-      <Section title="Looking For">
-        <p dir={detectDir(data["Looking For"])} style={{ whiteSpace: "pre-wrap", marginTop: 0, lineHeight: 1.6, textAlign: detectDir(data["Looking For"]) === "rtl" ? "right" : "left" }}>
-          {data["Looking For"]}
-        </p>
+      <Section title="References">
+        <p style={{ whiteSpace: "pre-wrap", marginTop: 0, lineHeight: 1.6 }}>{data["References"]}</p>
       </Section>
-      
-      <Section title="Full References">
-        <p style={{ whiteSpace: "pre-wrap", marginTop: 0 }}>{data["References"]}</p>
-      </Section>
+
+      {/* ⚠️ CONTACT INFO REMOVED FOR PUBLIC VIEW */}
 
       <style jsx global>{`
         @media print {
+          @page { margin: 2cm; }
           .no-print { display: none !important; }
+          body { -webkit-print-color-adjust: exact; }
         }
       `}</style>
     </div>
@@ -187,7 +235,7 @@ function ResumeContent() {
 
 export default function ViewResumePage() {
   return (
-    <Suspense fallback={<div>Loading Admin...</div>}>
+    <Suspense fallback={<div>Loading...</div>}>
       <ResumeContent />
     </Suspense>
   );

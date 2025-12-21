@@ -31,7 +31,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
         borderBottom: "2px solid #eee", 
         paddingBottom: 6, 
         marginBottom: 12, 
-        color: "#d32f2f", // Red color to remind you this is ADMIN view
+        color: "#d32f2f", // Red for Admin
         fontSize: 18,
         textTransform: "uppercase" 
       }}>
@@ -53,14 +53,17 @@ function ResumeContent() {
   useEffect(() => {
     if (!id) return;
     async function load() {
-      // ✅ ADMIN VIEW: Fetch EVERYTHING (*)
-      const { data } = await supabase
+      // ✅ ADMIN VIEW: Fetch EVERYTHING
+      const { data, error } = await supabase
         .from("intake_forms")
-        .select("*") 
+        .select("*")
         .eq("id", id)
         .single();
 
       if (data) {
+        // 🚨 DEBUG: Look at your browser console to see the real column names!
+        console.log("🔍 FULL DB RECORD:", data); 
+        
         setData(data);
         if (data.photo_path) {
           const { data: url } = await supabase.storage
@@ -68,6 +71,8 @@ function ResumeContent() {
             .createSignedUrl(data.photo_path, 60 * 60);
           if (url) setPhotoUrl(url.signedUrl);
         }
+      } else if (error) {
+        console.error("Error loading profile:", error);
       }
       setLoading(false);
     }
@@ -96,13 +101,14 @@ function ResumeContent() {
         textAlign: "center", 
         fontWeight: "bold", 
         marginBottom: 20, 
-        borderRadius: 4 
+        borderRadius: 4,
+        border: "1px solid #ffcdd2"
       }}>
         🔒 INTERNAL ADMIN VIEW (Contains Private Info)
       </div>
 
       <div className="no-print" style={{ marginBottom: 30, display: "flex", gap: 10 }}>
-         <button onClick={() => window.print()} style={{ padding: "8px 16px", cursor: "pointer" }}>🖨️ Print Admin Copy</button>
+         <button onClick={() => window.print()} style={{ padding: "8px 16px", cursor: "pointer", fontWeight: "bold" }}>🖨️ Print Admin Copy</button>
       </div>
 
       {/* HEADER */}
@@ -144,18 +150,19 @@ function ResumeContent() {
         </div>
       </Section>
 
-      {/* 🚨 SENSITIVE CONTACT INFO (Only in Admin View) */}
+      {/* 🚨 SENSITIVE CONTACT INFO (Admin Only) */}
       <Section title="🔒 Contact Info (Admin Only)">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, background: "#fff8e1", padding: 10, borderRadius: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, background: "#fff8e1", padding: 15, borderRadius: 8, border: "1px solid #ffe082" }}>
           <div>
-            <Detail label="Mobile" value={data["Mobile"]} />
-            <Detail label="Alt Mobile" value={data["Mobile 2"]} />
+            {/* Try multiple common names for Mobile */}
+            <Detail label="Mobile" value={data["Mobile"] || data["Phone"] || data["Cell"] || data["phone_number"]} />
+            <Detail label="Alt Mobile" value={data["Mobile 2"] || data["Alt Phone"] || data["secondary_phone"]} />
             <Detail label="Email" value={data["Email"]} />
           </div>
           <div>
-             <Detail label="Mechutan Phone" value={data["Mechutan_Phone"]} />
-             <Detail label="Ref 1 Phone" value={data["Reference_1_Phone"]} />
-             <Detail label="Ref 2 Phone" value={data["Reference_2_Phone"]} />
+             <Detail label="Mechutan Phone" value={data["Mechutan_Phone"] || data["In-Laws Phone"]} />
+             <Detail label="Ref 1 Phone" value={data["Reference_1_Phone"] || data["Ref1_Phone"]} />
+             <Detail label="Ref 2 Phone" value={data["Reference_2_Phone"] || data["Ref2_Phone"]} />
           </div>
         </div>
       </Section>

@@ -823,14 +823,15 @@ export default function MeClient() {
             <TextInput value={row.Email ?? ""} onChange={(v) => setRow({ ...row, Email: v })} />
           </Field>
 
-          <ChipMultiSelect
-            label={ui("Preffered Communication", "Preferred Communication").label}
-            hint={ui("Preffered Communication", "Preferred Communication").hint}
-            values={preferredComm}
-            onChange={setPreferredComm}
-            suggestions={["Email", "WhatsApp", "Phone call", "SMS"]}
-            placeholder="Type and press Enter…"
+          <FixedMultiPick
+           label={ui("Preffered Communication", "Preferred Communication").label}
+           hint="אפשר לבחור עד 3 אפשרויות."
+           options={["אימייל", "וואטסאפ", "טלפון"]}
+           values={preferredComm}
+           onChange={setPreferredComm}
+           max={3}
           />
+
 
           <Field label={ui("Contact Name", "Contact Name").label} hint={ui("Contact Name", "Contact Name").hint}>
             <TextInput

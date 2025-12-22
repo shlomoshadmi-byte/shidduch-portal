@@ -65,12 +65,138 @@ function shallowEqualJSON(a: unknown, b: unknown) {
 /** Detect RTL/LTR per value (Hebrew → rtl). */
 function detectDir(value: string) {
   const hasHebrew = /[\u0590-\u05FF]/.test(value);
-  if (hasHebrew) return "rtl";
-  return "ltr";
+  return hasHebrew ? "rtl" : "ltr";
 }
 
-// ✅ UI COMPONENTS (Kept exactly as you had them)
+type UiMeta = {
+  label: string; // display label (Hebrew)
+  hint?: string; // helper text (Hebrew)
+  placeholder?: string;
+};
+
+const UI: Record<string, UiMeta> = {
+  // Personal
+  "First Name": { label: "שם פרטי" },
+  Surname: { label: "שם משפחה" },
+  "Father's Name": { label: "שם האב" },
+  "Mother's Name": { label: "שם האם" },
+  "Date of Birth": { label: "תאריך לידה" },
+  City: { label: "עיר" },
+  Country: { label: "ארץ" },
+  Phone: { label: "טלפון" },
+  Email: { label: "אימייל" },
+  "Contact Name": { label: "שם להתקשרות עבור הצעות וכו׳" },
+  "Preffered Communication": { label: "דרכי התקשרות", hint: "אפשר להוסיף כמה אפשרויות (Email / WhatsApp / שיחה וכו׳)." },
+
+  // Background (me)
+  Gender: { label: "מין" },
+  Height: { label: "גובה" },
+  "My Status": { label: "הסטטוס שלי" },
+  Children: { label: "ילדים" },
+
+  "My languages": {
+    label: "שפת אם ושפות נוספות שלי",
+    hint:
+      "נא לציין שפת אם, ושפות נוספות בציון רמת שליטה (שוטף / שיחה / בסיסי).\n" +
+      "נא לציין רק שפות שבהן ניתן לנהל שיחה כלשהי.",
+    placeholder: "לדוגמה: עברית – שפת אם\nאנגלית – שיחה\nיידיש – בסיסי",
+  },
+
+  "My Community": {
+    label: "מגזר, עדה וקהילה שלי",
+    hint:
+      "ניתן לציין עדה (למשל אשכנזי/ספרדי/תימני), מגזר (ליטאי/חסידי/ספרדי), קהילה/חסידות,\n" +
+      "וסגנון כללי בבית ובקהילה (גם ברמת רבנים/הנהגות/מנהגים).",
+    placeholder: "לדוגמה: אשכנזי, ליטאי, קהילה X, סגנון בית: ...",
+  },
+
+  "My Occupation": {
+    label: "רקע לימודי ועיסוק נוכחי שלי",
+    hint:
+      "ציינו ישיבות / סמינר ו/או מסגרות לימוד נוספות (כולל מגמה ושנים).\n" +
+      "פרטו עיסוק נוכחי – עבודה / לימודים / הכשרה (תחום, היקף ועיר).\n\n" +
+      "בחורים: ישיבות/כולל (כולל שנים), ואם עובדים – תחום העיסוק והאם קובעים עיתים לתורה.\n" +
+      "בחורות: סמינר ומגמה, לימודים נוספים (אם יש), ועיסוק נוכחי.\n\n" +
+      "אם יש תכניות לשינוי בקרוב – ניתן לציין.\n" +
+      "ככל שתפרטו יותר, נוכל ליצור התאמות מדויקות ומשמעותיות יותר.",
+    placeholder: "אפשר לכתוב בנקודות — הכי נוח.",
+  },
+
+  // Looking for (them)
+  "Their Status": { label: "הסטטוס שלהם" },
+
+  "Their Occupation": {
+    label: "העדפות לגבי רקע לימודי/תורני ועיסוק נוכחי שלהם",
+    hint:
+      'נא לפרט: האם מחפשים בן/בת תורה "שתורתו/ה אומנותו", משלב תורה ועבודה, או עובד/ת קבוע/ה?\n' +
+      "האם חשוב רקע ישיבתי/סמינרי מסוים?\n" +
+      "האם יש דרישה או העדפה למקצוע, תחום או תואר?\n\n" +
+      "אין חובה לבחור ניסוח מדויק — פירוט ענייני וברור יעזור לנו ליצור התאמות מדויקות יותר.",
+    placeholder: "לדוגמה: חשוב לי שילוב תורה ועבודה, רקע ישיבתי X יתרון, תואר לא חובה...",
+  },
+
+  "Their Community": {
+    label: "העדפות לגבי מגזר, עדה וקהילה שלהם",
+    hint:
+      "נא לפרט את העדפותיכם לגבי המגזר, העדה והקהילה של הצד השני.\n" +
+      "האם יש העדפה או דרישה לעדה, מגזר, קהילה או חסידות מסוימת?\n" +
+      "ניתן לציין גם סגנון כללי בבית ובקהילה (כולל רבנים, הנהגות ומנהגים).\n\n" +
+      "פירוט מלא יסייע להתאמות מדויקות יותר.",
+    placeholder: "לדוגמה: ספרדי בני תורה, קהילה..., פתוח/גמיש לגבי...",
+  },
+
+  "Their Languages": {
+    label: "העדפות לגבי שפת אם ושפות נוספות שלהם",
+    hint:
+      "נא לציין האם יש חשיבות לשפת אם או לשפות נוספות של הצד השני, ואם כן – באיזו רמה.\n" +
+      "לדוגמה: עברית – חובה | אנגלית – יתרון / לא חובה.\n\n" +
+      "אין חובה לציין העדפות — כל פירוט יסייע להתאמות מדויקות יותר.",
+    placeholder: "לדוגמה: עברית חובה; אנגלית יתרון",
+  },
+
+  // About
+  "About Me": {
+    label: "קצת עליי",
+    hint:
+      "נשמח שתספרו על עצמכם מעבר לתכונות כלליות.\n" +
+      "אפשר להתייחס לדברים כמו:\n" +
+      "• אופי ודרך חיים ביום־יום\n" +
+      "• לימוד תורה, עבודה ואיזון ביניהם\n" +
+      "• שאיפות לעתיד (רוחניות, מקצוע, משפחה)\n" +
+      "• סגנון חיים ואווירת בית שחשובים לכם\n\n" +
+      "במקום “בחור/בחורה נחמדים” – נסו לתאר איך זה באמת לחיות אתכם.\n" +
+      "ככל שתפרטו יותר, כך נוכל להתאים טוב יותר.",
+    placeholder: "מומלץ לכתוב 5–10 שורות או בנקודות.",
+  },
+
+  "About Them": {
+    label: "מה חשוב לי בצד השני",
+    hint:
+      "נשמח שתפרטו מה באמת חשוב לכם בצד השני, מעבר לתכונות כלליות.\n" +
+      "אפשר להתייחס לדברים כמו:\n" +
+      "• גישה ללימוד תורה, עבודה ושילוב ביניהם\n" +
+      "• סגנון אישיות ותקשורת\n" +
+      "• שאיפות לעתיד וסוג הבית שתרצו לבנות יחד\n" +
+      "• דברים שחשובים לכם במיוחד, לצד דברים שבהם אתם גמישים\n" +
+      "• העדפות כלליות לגבי גיל וגובה – בכיוון כללי בלבד\n\n" +
+      "אין צורך ברשימת “דרישות” — תיאור כן וברור יעזור לנו ליצור התאמות משמעותיות יותר.",
+    placeholder: "מומלץ לציין 3–6 עקרונות + במה אתם גמישים.",
+  },
+
+  References: {
+    label: "המלצות",
+    hint: "צירוף אינו חובה, אך מומלץ, וניתן להוסיף גם בהמשך.",
+    placeholder: "שמות + קשר/טלפון (אם יש), או כל מידע מועיל אחר.",
+  },
+};
+
+function ui(key: string, fallbackLabel: string): UiMeta {
+  return UI[key] ?? { label: fallbackLabel };
+}
+
+// ✅ UI COMPONENTS
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  const dir = detectDir(title);
   return (
     <div
       style={{
@@ -82,19 +208,32 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <h2 style={{ margin: 0, fontSize: 16 }}>{title}</h2>
+        <h2 style={{ margin: 0, fontSize: 16, direction: dir as any, textAlign: dir === "rtl" ? "right" : "left" }}>
+          {title}
+        </h2>
       </div>
       <div style={{ marginTop: 10 }}>{children}</div>
     </div>
   );
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  const dir = detectDir(label + " " + (hint ?? ""));
   return (
     <label style={{ display: "block", marginTop: 12 }}>
-      <div style={{ fontSize: 12, marginBottom: 6, color: "#222" }}>
-        {label}
-        {hint ? <span style={{ marginLeft: 8, color: "#777" }}>{hint}</span> : null}
+      <div style={{ fontSize: 12, marginBottom: 6, color: "#222", direction: dir as any }}>
+        <div style={{ fontWeight: 600 }}>{label}</div>
+        {hint ? (
+          <div style={{ marginTop: 6, color: "#777", lineHeight: 1.35, whiteSpace: "pre-wrap" }}>{hint}</div>
+        ) : null}
       </div>
       {children}
     </label>
@@ -112,7 +251,7 @@ function TextInput({
   type?: "text" | "date";
   placeholder?: string;
 }) {
-  const dir = detectDir(value);
+  const dir = detectDir(value || placeholder || "");
   return (
     <input
       dir={dir}
@@ -141,7 +280,7 @@ function TextArea({
   onChange: (v: string) => void;
   placeholder?: string;
 }) {
-  const dir = detectDir(value);
+  const dir = detectDir(value || placeholder || "");
   return (
     <textarea
       dir={dir}
@@ -154,9 +293,10 @@ function TextArea({
         border: "1px solid #d8d8d8",
         borderRadius: 10,
         outline: "none",
-        minHeight: 90,
+        minHeight: 110,
         resize: "vertical",
         textAlign: dir === "rtl" ? "right" : "left",
+        whiteSpace: "pre-wrap",
       }}
     />
   );
@@ -178,7 +318,7 @@ function ChipMultiSelect({
   hint?: string;
 }) {
   const [draft, setDraft] = useState("");
-  const dir = detectDir(draft);
+  const dir = detectDir(draft || label || hint || "");
 
   function add(v: string) {
     const cleaned = v.trim();
@@ -194,9 +334,9 @@ function ChipMultiSelect({
 
   return (
     <div style={{ marginTop: 12 }}>
-      <div style={{ fontSize: 12, marginBottom: 6 }}>
-        {label}
-        {hint ? <span style={{ marginLeft: 8, color: "#777" }}>{hint}</span> : null}
+      <div style={{ fontSize: 12, marginBottom: 6, direction: dir as any }}>
+        <div style={{ fontWeight: 600 }}>{label}</div>
+        {hint ? <div style={{ marginTop: 6, color: "#777", lineHeight: 1.35, whiteSpace: "pre-wrap" }}>{hint}</div> : null}
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
@@ -268,6 +408,7 @@ function ChipMultiSelect({
             cursor: "pointer",
             borderRadius: 10,
             fontSize: 13,
+            fontWeight: 700,
           }}
         >
           Add
@@ -301,9 +442,9 @@ function ChipMultiSelect({
 
 // ✅ MAIN CLIENT COMPONENT
 export default function MeClient() {
-  const router = useRouter();
+  const router = useRouter(); // kept (you may use later)
   const searchParams = useSearchParams();
-  const id = searchParams.get("id"); // 👈 GET ID FROM URL
+  const id = searchParams.get("id");
 
   const [loading, setLoading] = useState(true);
   const [row, setRow] = useState<IntakeForm | null>(null);
@@ -331,7 +472,6 @@ export default function MeClient() {
         return;
       }
 
-      // 🔓 PUBLIC FETCH (Allowed by RLS policy 'to anon')
       const { data, error } = await supabase
         .from("intake_forms")
         .select(
@@ -354,12 +494,10 @@ export default function MeClient() {
       } else if (!data) {
         setError("Submission not found (or access denied).");
       } else {
-        // 1. Set the form data
         setRow(data);
         setPreferredComm(normalizeArr(data["Preffered Communication"]));
         setTheirStatus(normalizeArr(data["Their Status"]));
 
-        // 2. Save snapshot for change tracking
         originalRef.current = {
           row: data,
           preferredComm: normalizeArr(data["Preffered Communication"]),
@@ -379,11 +517,8 @@ export default function MeClient() {
         setPhotoUrl(null);
         return;
       }
-      // Note: If bucket is public, we can just use getPublicUrl too.
-      // But createSignedUrl works for both public/private if RLS allows.
-      const { data, error } = await supabase.storage
-        .from(PHOTO_BUCKET)
-        .createSignedUrl(row.photo_path, 60 * 60);
+
+      const { data, error } = await supabase.storage.from(PHOTO_BUCKET).createSignedUrl(row.photo_path, 60 * 60);
 
       if (error) {
         console.warn("Signed URL error:", error.message);
@@ -400,7 +535,6 @@ export default function MeClient() {
     return !shallowEqualJSON({ row, preferredComm, theirStatus }, originalRef.current);
   }, [row, preferredComm, theirStatus]);
 
-  // ✅ SMART SAVE (Public Update)
   async function saveAll() {
     if (!row) return;
 
@@ -408,7 +542,6 @@ export default function MeClient() {
     setBanner(null);
     setSaving(true);
 
-    // 1. Prepare Payload (Note: We do NOT send user_id, protecting ownership)
     const payload: any = {
       "First Name": row["First Name"],
       Surname: row.Surname,
@@ -438,7 +571,6 @@ export default function MeClient() {
       photo_path: row.photo_path ?? null,
     };
 
-    // 2. Public Update via RLS
     const { error } = await supabase.from("intake_forms").update(payload).eq("id", row.id);
 
     setSaving(false);
@@ -448,7 +580,6 @@ export default function MeClient() {
       return;
     }
 
-    // 3. Diff Calculation
     const changesOnly: Record<string, any> = {};
     if (originalRef.current) {
       Object.keys(payload).forEach((key) => {
@@ -465,7 +596,6 @@ export default function MeClient() {
       Object.assign(changesOnly, payload);
     }
 
-    // 4. Notify Admin
     if (Object.keys(changesOnly).length > 0) {
       fetch("/api/notify-edit", {
         method: "POST",
@@ -480,7 +610,6 @@ export default function MeClient() {
       }).catch((err) => console.error("Failed to notify admin of edit", err));
     }
 
-    // 5. Update Snapshot
     originalRef.current = {
       row,
       preferredComm,
@@ -504,7 +633,6 @@ export default function MeClient() {
     setTimeout(() => setBanner(null), 1500);
   }
 
-  // ✅ PHOTO UPLOAD
   async function handlePhotoUpload(file: File) {
     if (!row) return;
     setError(null);
@@ -516,18 +644,12 @@ export default function MeClient() {
       const safeExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "jpg";
       const path = `${row.id}/photo.${safeExt}`;
 
-      // Upload to Storage
-      const up = await supabase.storage
-        .from(PHOTO_BUCKET)
-        .upload(path, file, { upsert: true, contentType: file.type });
-
+      const up = await supabase.storage.from(PHOTO_BUCKET).upload(path, file, { upsert: true, contentType: file.type });
       if (up.error) throw up.error;
 
-      // Update DB Path
       const { error } = await supabase.from("intake_forms").update({ photo_path: path }).eq("id", row.id);
       if (error) throw error;
 
-      // Notify Admin
       fetch("/api/notify-edit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -587,7 +709,6 @@ export default function MeClient() {
             gap: 12,
           }}
         >
-          {/* Logo + title block */}
           <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
             <img
               src={LOGO_SRC}
@@ -601,9 +722,9 @@ export default function MeClient() {
               }}
             />
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 16, fontWeight: 700 }}>Manage submission</div>
+              <div style={{ fontSize: 16, fontWeight: 700 }}>עדכון פרופיל</div>
               <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>
-                {dirty ? "Unsaved changes" : "All changes saved"}
+                {dirty ? "יש שינויים שלא נשמרו" : "כל השינויים נשמרו"}
                 {banner ? <span style={{ marginLeft: 10, color: "#111" }}>• {banner}</span> : null}
               </div>
             </div>
@@ -657,7 +778,7 @@ export default function MeClient() {
           </span>
         </div>
 
-        <Section title="Photo">
+        <Section title="תמונה">
           <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
             <div
               style={{
@@ -714,110 +835,183 @@ export default function MeClient() {
           </div>
         </Section>
 
-        <Section title="Personal details">
-          <Field label="First Name">
-            <TextInput value={row["First Name"] ?? ""} onChange={(v) => setRow({ ...row, ["First Name"]: v })} />
+        <Section title="פרטים אישיים">
+          <Field label={ui("First Name", "First Name").label} hint={ui("First Name", "First Name").hint}>
+            <TextInput
+              value={row["First Name"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["First Name"]: v })}
+              placeholder={ui("First Name", "First Name").placeholder}
+            />
           </Field>
-          <Field label="Surname">
-            <TextInput value={row.Surname ?? ""} onChange={(v) => setRow({ ...row, Surname: v })} />
+
+          <Field label={ui("Surname", "Surname").label} hint={ui("Surname", "Surname").hint}>
+            <TextInput
+              value={row.Surname ?? ""}
+              onChange={(v) => setRow({ ...row, Surname: v })}
+              placeholder={ui("Surname", "Surname").placeholder}
+            />
           </Field>
-          <Field label="Father's Name">
-            <TextInput value={row["Father's Name"] ?? ""} onChange={(v) => setRow({ ...row, ["Father's Name"]: v })} />
+
+          <Field label={ui("Father's Name", "Father's Name").label} hint={ui("Father's Name", "Father's Name").hint}>
+            <TextInput
+              value={row["Father's Name"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["Father's Name"]: v })}
+              placeholder={ui("Father's Name", "Father's Name").placeholder}
+            />
           </Field>
-          <Field label="Mother's Name">
-            <TextInput value={row["Mother's Name"] ?? ""} onChange={(v) => setRow({ ...row, ["Mother's Name"]: v })} />
+
+          <Field label={ui("Mother's Name", "Mother's Name").label} hint={ui("Mother's Name", "Mother's Name").hint}>
+            <TextInput
+              value={row["Mother's Name"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["Mother's Name"]: v })}
+              placeholder={ui("Mother's Name", "Mother's Name").placeholder}
+            />
           </Field>
-          <Field label="Date of Birth" hint="(as entered)">
-            <TextInput value={row["Date of Birth"] ?? ""} onChange={(v) => setRow({ ...row, ["Date of Birth"]: v })} />
+
+          <Field label={ui("Date of Birth", "Date of Birth").label} hint={ui("Date of Birth", "Date of Birth").hint}>
+            <TextInput
+              type="text"
+              value={row["Date of Birth"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["Date of Birth"]: v })}
+              placeholder={ui("Date of Birth", "Date of Birth").placeholder}
+            />
           </Field>
         </Section>
 
-        <Section title="Contact">
-          <Field label="City">
+        <Section title="יצירת קשר">
+          <Field label={ui("City", "City").label} hint={ui("City", "City").hint}>
             <TextInput value={row.City ?? ""} onChange={(v) => setRow({ ...row, City: v })} />
           </Field>
-          <Field label="Country">
+
+          <Field label={ui("Country", "Country").label} hint={ui("Country", "Country").hint}>
             <TextInput value={row.Country ?? ""} onChange={(v) => setRow({ ...row, Country: v })} />
           </Field>
-          <Field label="Phone">
+
+          <Field label={ui("Phone", "Phone").label} hint={ui("Phone", "Phone").hint}>
             <TextInput value={row.Phone ?? ""} onChange={(v) => setRow({ ...row, Phone: v })} />
           </Field>
-          <Field label="Email">
+
+          <Field label={ui("Email", "Email").label} hint={ui("Email", "Email").hint}>
             <TextInput value={row.Email ?? ""} onChange={(v) => setRow({ ...row, Email: v })} />
           </Field>
+
           <ChipMultiSelect
-            label="Preferred Communication"
-            hint="(safe — won’t break saving)"
+            label={ui("Preffered Communication", "Preferred Communication").label}
+            hint={ui("Preffered Communication", "Preferred Communication").hint}
             values={preferredComm}
             onChange={setPreferredComm}
             suggestions={["Email", "WhatsApp", "Phone call", "SMS"]}
+            placeholder="Type and press Enter…"
           />
+
+          <Field label={ui("Contact Name", "Contact Name").label} hint={ui("Contact Name", "Contact Name").hint}>
+            <TextInput
+              value={row["Contact Name"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["Contact Name"]: v })}
+            />
+          </Field>
         </Section>
 
-        <Section title="Background">
-          <Field label="Contact Name">
-            <TextInput value={row["Contact Name"] ?? ""} onChange={(v) => setRow({ ...row, ["Contact Name"]: v })} />
-          </Field>
-          <Field label="My languages">
-            <TextInput value={row["My languages"] ?? ""} onChange={(v) => setRow({ ...row, ["My languages"]: v })} />
-          </Field>
-          <Field label="Gender">
+        <Section title="רקע">
+          <Field label={ui("Gender", "Gender").label} hint={ui("Gender", "Gender").hint}>
             <TextInput value={row.Gender ?? ""} onChange={(v) => setRow({ ...row, Gender: v })} />
           </Field>
-          <Field label="Height">
+
+          <Field label={ui("Height", "Height").label} hint={ui("Height", "Height").hint}>
             <TextInput value={row.Height ?? ""} onChange={(v) => setRow({ ...row, Height: v })} />
           </Field>
-          <Field label="My Community">
-            <TextInput value={row["My Community"] ?? ""} onChange={(v) => setRow({ ...row, ["My Community"]: v })} />
-          </Field>
-          <Field label="My Status">
+
+          <Field label={ui("My Status", "My Status").label} hint={ui("My Status", "My Status").hint}>
             <TextInput value={row["My Status"] ?? ""} onChange={(v) => setRow({ ...row, ["My Status"]: v })} />
           </Field>
-          <Field label="Children">
+
+          <Field label={ui("Children", "Children").label} hint={ui("Children", "Children").hint}>
             <TextInput value={row.Children ?? ""} onChange={(v) => setRow({ ...row, Children: v })} />
           </Field>
-          <Field label="My Occupation">
-            <TextInput value={row["My Occupation"] ?? ""} onChange={(v) => setRow({ ...row, ["My Occupation"]: v })} />
+
+          <Field label={ui("My languages", "My languages").label} hint={ui("My languages", "My languages").hint}>
+            <TextArea
+              value={row["My languages"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["My languages"]: v })}
+              placeholder={ui("My languages", "My languages").placeholder}
+            />
+          </Field>
+
+          <Field label={ui("My Community", "My Community").label} hint={ui("My Community", "My Community").hint}>
+            <TextArea
+              value={row["My Community"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["My Community"]: v })}
+              placeholder={ui("My Community", "My Community").placeholder}
+            />
+          </Field>
+
+          <Field label={ui("My Occupation", "My Occupation").label} hint={ui("My Occupation", "My Occupation").hint}>
+            <TextArea
+              value={row["My Occupation"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["My Occupation"]: v })}
+              placeholder={ui("My Occupation", "My Occupation").placeholder}
+            />
           </Field>
         </Section>
 
-        <Section title="Looking for">
-          <Field label="Their Occupation">
-            <TextInput
-              value={row["Their Occupation"] ?? ""}
-              onChange={(v) => setRow({ ...row, ["Their Occupation"]: v })}
-            />
-          </Field>
-          <Field label="Their Community">
-            <TextInput
-              value={row["Their Community"] ?? ""}
-              onChange={(v) => setRow({ ...row, ["Their Community"]: v })}
-            />
-          </Field>
-          <Field label="Their Languages">
-            <TextInput
-              value={row["Their Languages"] ?? ""}
-              onChange={(v) => setRow({ ...row, ["Their Languages"]: v })}
-            />
-          </Field>
+        <Section title="מחפש/ת">
           <ChipMultiSelect
-            label="Their Status"
-            hint="(safe — won’t break saving)"
+            label={ui("Their Status", "Their Status").label}
+            hint="אפשר להזין כמה ערכים (לדוגמה: לומד/עובד/שילוב)."
             values={theirStatus}
             onChange={setTheirStatus}
             suggestions={["Working", "Learning", "Both", "Other"]}
+            placeholder="Type and press Enter…"
           />
+
+          <Field label={ui("Their Occupation", "Their Occupation").label} hint={ui("Their Occupation", "Their Occupation").hint}>
+            <TextArea
+              value={row["Their Occupation"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["Their Occupation"]: v })}
+              placeholder={ui("Their Occupation", "Their Occupation").placeholder}
+            />
+          </Field>
+
+          <Field label={ui("Their Community", "Their Community").label} hint={ui("Their Community", "Their Community").hint}>
+            <TextArea
+              value={row["Their Community"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["Their Community"]: v })}
+              placeholder={ui("Their Community", "Their Community").placeholder}
+            />
+          </Field>
+
+          <Field label={ui("Their Languages", "Their Languages").label} hint={ui("Their Languages", "Their Languages").hint}>
+            <TextArea
+              value={row["Their Languages"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["Their Languages"]: v })}
+              placeholder={ui("Their Languages", "Their Languages").placeholder}
+            />
+          </Field>
         </Section>
 
-        <Section title="About">
-          <Field label="About Me">
-            <TextArea value={row["About Me"] ?? ""} onChange={(v) => setRow({ ...row, ["About Me"]: v })} />
+        <Section title="טקסט חופשי">
+          <Field label={ui("About Me", "About Me").label} hint={ui("About Me", "About Me").hint}>
+            <TextArea
+              value={row["About Me"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["About Me"]: v })}
+              placeholder={ui("About Me", "About Me").placeholder}
+            />
           </Field>
-          <Field label="About Them">
-            <TextArea value={row["About Them"] ?? ""} onChange={(v) => setRow({ ...row, ["About Them"]: v })} />
+
+          <Field label={ui("About Them", "About Them").label} hint={ui("About Them", "About Them").hint}>
+            <TextArea
+              value={row["About Them"] ?? ""}
+              onChange={(v) => setRow({ ...row, ["About Them"]: v })}
+              placeholder={ui("About Them", "About Them").placeholder}
+            />
           </Field>
-          <Field label="References">
-            <TextArea value={row.References ?? ""} onChange={(v) => setRow({ ...row, References: v })} />
+
+          <Field label={ui("References", "References").label} hint={ui("References", "References").hint}>
+            <TextArea
+              value={row.References ?? ""}
+              onChange={(v) => setRow({ ...row, References: v })}
+              placeholder={ui("References", "References").placeholder}
+            />
           </Field>
         </Section>
 

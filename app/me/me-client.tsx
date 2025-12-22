@@ -302,34 +302,29 @@ function TextArea({
   );
 }
 
-function ChipMultiSelect({
+function FixedMultiPick({
   label,
+  hint,
+  options,
   values,
   onChange,
-  suggestions,
-  placeholder = "Type and press Enter…",
-  hint,
+  max,
 }: {
   label: string;
+  hint?: string;
+  options: string[];
   values: string[];
   onChange: (v: string[]) => void;
-  suggestions?: string[];
-  placeholder?: string;
-  hint?: string;
+  max?: number;
 }) {
-  const [draft, setDraft] = useState("");
-  const dir = detectDir(draft || label || hint || "");
+  const dir = detectDir(label + " " + options.join(" "));
+  const canAddMore = max == null || values.length < max;
 
-  function add(v: string) {
-    const cleaned = v.trim();
-    if (!cleaned) return;
-    if (values.includes(cleaned)) return;
-    onChange([...values, cleaned]);
-    setDraft("");
-  }
-
-  function remove(v: string) {
-    onChange(values.filter((x) => x !== v));
+  function toggle(opt: string) {
+    const exists = values.includes(opt);
+    if (exists) return onChange(values.filter((x) => x !== opt));
+    if (!canAddMore) return;
+    onChange([...values, opt]);
   }
 
   return (
@@ -339,106 +334,39 @@ function ChipMultiSelect({
         {hint ? <div style={{ marginTop: 6, color: "#777", lineHeight: 1.35, whiteSpace: "pre-wrap" }}>{hint}</div> : null}
       </div>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-        {values.length ? (
-          values.map((v) => (
-            <span
-              key={v}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                border: "1px solid #e0e0e0",
-                borderRadius: 999,
-                padding: "6px 10px",
-                background: "#fafafa",
-                fontSize: 13,
-              }}
-            >
-              {v}
-              <button
-                type="button"
-                onClick={() => remove(v)}
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  cursor: "pointer",
-                  fontSize: 14,
-                  lineHeight: 1,
-                }}
-                aria-label={`Remove ${v}`}
-              >
-                ×
-              </button>
-            </span>
-          ))
-        ) : (
-          <span style={{ color: "#777", fontSize: 13 }}>None selected</span>
-        )}
-      </div>
-
-      <div style={{ display: "flex", gap: 8 }}>
-        <input
-          dir={dir}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={placeholder}
-          style={{
-            flex: 1,
-            padding: 10,
-            border: "1px solid #d8d8d8",
-            borderRadius: 10,
-            outline: "none",
-            textAlign: dir === "rtl" ? "right" : "left",
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              add(draft);
-            }
-          }}
-        />
-        <button
-          type="button"
-          onClick={() => add(draft)}
-          style={{
-            padding: "10px 12px",
-            border: "1px solid #000",
-            background: "#fff",
-            cursor: "pointer",
-            borderRadius: 10,
-            fontSize: 13,
-            fontWeight: 700,
-          }}
-        >
-          Add
-        </button>
-      </div>
-
-      {suggestions?.length ? (
-        <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {suggestions.map((s) => (
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        {options.map((opt) => {
+          const selected = values.includes(opt);
+          return (
             <button
-              key={s}
+              key={opt}
               type="button"
-              onClick={() => add(s)}
+              onClick={() => toggle(opt)}
               style={{
-                padding: "6px 10px",
-                border: "1px solid #e0e0e0",
-                background: "#fff",
+                padding: "10px 12px",
+                borderRadius: 12,
+                border: selected ? "1px solid #000" : "1px solid #e0e0e0",
+                background: selected ? "#f4f4f4" : "#fff",
                 cursor: "pointer",
-                borderRadius: 10,
-                fontSize: 12,
+                fontSize: 13,
+                direction: dir as any,
               }}
             >
-              + {s}
+              {opt} {selected ? "✓" : ""}
             </button>
-          ))}
+          );
+        })}
+      </div>
+
+      {max != null ? (
+        <div style={{ marginTop: 8, fontSize: 12, color: "#777", direction: dir as any }}>
+          נבחרו {values.length} מתוך {max}
         </div>
       ) : null}
     </div>
   );
 }
+
 
 // ✅ MAIN CLIENT COMPONENT
 export default function MeClient() {
@@ -921,9 +849,14 @@ export default function MeClient() {
             <TextInput value={row.Height ?? ""} onChange={(v) => setRow({ ...row, Height: v })} />
           </Field>
 
-          <Field label={ui("My Status", "My Status").label} hint={ui("My Status", "My Status").hint}>
-            <TextInput value={row["My Status"] ?? ""} onChange={(v) => setRow({ ...row, ["My Status"]: v })} />
+          <Field label="הסטטוס שלי">
+          <SelectInput
+           value={row["My Status"] ?? ""}
+           onChange={(v) => setRow({ ...row, ["My Status"]: v })}
+           options={["רווק/ה", "גרוש/ה", "אלמן/ה"]}
+           />
           </Field>
+
 
           <Field label={ui("Children", "Children").label} hint={ui("Children", "Children").hint}>
             <TextInput value={row.Children ?? ""} onChange={(v) => setRow({ ...row, Children: v })} />
@@ -955,14 +888,15 @@ export default function MeClient() {
         </Section>
 
         <Section title="מחפש/ת">
-          <ChipMultiSelect
-            label={ui("Their Status", "Their Status").label}
-            hint="אפשר להזין כמה ערכים (לדוגמה: לומד/עובד/שילוב)."
-            values={theirStatus}
-            onChange={setTheirStatus}
-            suggestions={["Working", "Learning", "Both", "Other"]}
-            placeholder="Type and press Enter…"
+          
+          <FixedMultiPick
+          label={ui("Their Status", "Their Status").label} // will show: הסטטוס שלהם
+          hint="אפשר לבחור כמה אפשרויות."
+          options={["רווק/ה", "גרוש/ה", "אלמן/ה"]}
+          values={theirStatus}
+          onChange={setTheirStatus}
           />
+
 
           <Field label={ui("Their Occupation", "Their Occupation").label} hint={ui("Their Occupation", "Their Occupation").hint}>
             <TextArea

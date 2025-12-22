@@ -850,13 +850,23 @@ export default function MeClient() {
             <TextInput value={row.Height ?? ""} onChange={(v) => setRow({ ...row, Height: v })} />
           </Field>
 
-          <Field label="הסטטוס שלי">
-          <SelectInput
-           value={row["My Status"] ?? ""}
-           onChange={(v) => setRow({ ...row, ["My Status"]: v })}
-           options={["רווק/ה", "גרוש/ה", "אלמן/ה"]}
-           />
-          </Field>
+         <select
+  value={row["My Status"] ?? ""}
+  onChange={(e) => setRow({ ...row, ["My Status"]: e.target.value })}
+  style={{
+    width: "100%",
+    padding: 10,
+    border: "1px solid #d8d8d8",
+    borderRadius: 10,
+    background: "#fff",
+  }}
+>
+  <option value="">בחר/י…</option>
+  <option value="רווק/ה">רווק/ה</option>
+  <option value="גרוש/ה">גרוש/ה</option>
+  <option value="אלמן/ה">אלמן/ה</option>
+</select>
+
 
 
           <Field label={ui("Children", "Children").label} hint={ui("Children", "Children").hint}>

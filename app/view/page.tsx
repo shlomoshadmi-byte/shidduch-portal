@@ -49,13 +49,7 @@ function Detail({ label, value }: { label: string; value: any }) {
   );
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 24, breakInside: "avoid" }}>
       <h3
@@ -76,13 +70,7 @@ function Section({
   );
 }
 
-function TwoCol({
-  left,
-  right,
-}: {
-  left: React.ReactNode;
-  right: React.ReactNode;
-}) {
+function TwoCol({ left, right }: { left: React.ReactNode; right: React.ReactNode }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
       <div>{left}</div>
@@ -126,12 +114,7 @@ function LinkRow({ label, href }: { label: string; href?: string | null }) {
   return (
     <div style={{ marginBottom: 8, lineHeight: 1.5 }}>
       <span style={{ fontWeight: 700, color: "#444" }}>{label}: </span>
-      <a
-        href={href}
-        target="_blank"
-        rel="noreferrer"
-        style={{ color: "#1565c0", textDecoration: "underline" }}
-      >
+      <a href={href} target="_blank" rel="noreferrer" style={{ color: "#1565c0", textDecoration: "underline" }}>
         {href}
       </a>
     </div>
@@ -160,11 +143,7 @@ function ResumeContent() {
       setLoading(true);
       setErrMsg(null);
 
-      const { data, error } = await supabase
-        .from("intake_forms")
-        .select("*")
-        .eq("id", id)
-        .single();
+      const { data, error } = await supabase.from("intake_forms").select("*").eq("id", id).single();
 
       if (cancelled) return;
 
@@ -178,13 +157,9 @@ function ResumeContent() {
 
       setData(data);
 
-      // Photo
       const p = (data as any)?.photo_path;
       if (p) {
-        const { data: urlData, error: urlErr } = await supabase.storage
-          .from(PHOTO_BUCKET)
-          .createSignedUrl(p, 60 * 60);
-
+        const { data: urlData, error: urlErr } = await supabase.storage.from(PHOTO_BUCKET).createSignedUrl(p, 60 * 60);
         if (!cancelled) {
           if (urlErr) {
             console.warn("Failed to sign photo url:", urlErr);
@@ -201,24 +176,46 @@ function ResumeContent() {
     }
 
     load();
-
     return () => {
       cancelled = true;
     };
   }, [id]);
 
+  // ✅ IMPORTANT: keep hooks ABOVE all early returns
   const dob = useMemo(() => (data ? data["Date of Birth"] : null), [data]);
   const age = useMemo(() => calcAge(dob), [dob]);
   const dobDisplay = useMemo(() => formatDate(dob), [dob]);
 
-  if (loading) {
-    return (
-      <div style={{ padding: 40, textAlign: "center", fontFamily: "Arial, sans-serif" }}>
-        Loading Admin View...
-      </div>
-    );
-  }
+  const hiddenKeyPrefixes = ["emb_"];
+  const hiddenKeysExact = useMemo(
+    () =>
+      new Set<string>([
+        "claim_token",
+        "manage_token",
+        "delete_token",
+        "user_id",
+        "deleted_at",
+        "delete_reason",
+        "gender_norm",
+        "my_status_norm",
+        "their_status_norm",
+      ]),
+    []
+  );
 
+  const rawEntries = useMemo(() => {
+    const obj = (data ?? {}) as Record<string, any>;
+    return Object.entries(obj)
+      .filter(([_, v]) => !isEmptyValue(v))
+      .filter(([k]) => !hiddenKeysExact.has(k))
+      .filter(([k]) => !hiddenKeyPrefixes.some((p) => k.startsWith(p)))
+      .sort(([a], [b]) => a.localeCompare(b));
+  }, [data, hiddenKeysExact]);
+
+  // Now early returns are safe
+  if (loading) {
+    return <div style={{ padding: 40, textAlign: "center", fontFamily: "Arial, sans-serif" }}>Loading Admin View...</div>;
+  }
   if (errMsg) {
     return (
       <div style={{ padding: 40, textAlign: "center", fontFamily: "Arial, sans-serif" }}>
@@ -227,80 +224,22 @@ function ResumeContent() {
       </div>
     );
   }
-
   if (!data) {
-    return (
-      <div style={{ padding: 40, textAlign: "center", fontFamily: "Arial, sans-serif" }}>
-        Profile not found.
-      </div>
-    );
+    return <div style={{ padding: 40, textAlign: "center", fontFamily: "Arial, sans-serif" }}>Profile not found.</div>;
   }
 
   const firstName = data["First Name"];
   const surname = data["Surname"];
   const city = data["City"];
   const country = data["Country"];
-
   const aboutMe = data["About Me"];
   const aboutThem = data["About Them"];
   const refs = data["References"];
-
-  // Raw dump: hide noisy/internal keys but keep useful admin links/status.
-  const hiddenKeyPrefixes = ["emb_"]; // hide vectors
-  const hiddenKeysExact = new Set<string>([
-    // tokens / internal auth stuff
-    "claim_token",
-    "manage_token",
-    "delete_token",
-    "user_id",
-    // internal housekeeping
-    "deleted_at",
-    "delete_reason",
-    // normalized picklist artifacts (optional to hide)
-    "gender_norm",
-    "my_status_norm",
-    "their_status_norm",
-  ]);
-
-  const rawEntries = useMemo(() => {
-    const entries = Object.entries(data as Record<string, any>)
-      .filter(([_, v]) => !isEmptyValue(v))
-      .filter(([k]) => !hiddenKeysExact.has(k))
-      .filter(([k]) => !hiddenKeyPrefixes.some((p) => k.startsWith(p)))
-      .sort(([a], [b]) => a.localeCompare(b));
-    return entries;
-  }, [data]);
-
   const whatsappSent = Boolean(data.whatsapp_sent);
 
   return (
-    <div
-      style={{
-        maxWidth: 900,
-        margin: "0 auto",
-        padding: 40,
-        fontFamily: "Arial, sans-serif",
-        color: "#333",
-        background: "#fff",
-        minHeight: "100vh",
-      }}
-    >
-      {/* ADMIN BANNER */}
-      <div
-        className="no-print"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          background: "#ffebee",
-          color: "#c62828",
-          padding: "10px 12px",
-          fontWeight: 900,
-          marginBottom: 18,
-          borderRadius: 8,
-          border: "1px solid #ffcdd2",
-        }}
-      >
+    <div style={{ maxWidth: 900, margin: "0 auto", padding: 40, fontFamily: "Arial, sans-serif", color: "#333", background: "#fff", minHeight: "100vh" }}>
+      <div className="no-print" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#ffebee", color: "#c62828", padding: "10px 12px", fontWeight: 900, marginBottom: 18, borderRadius: 8, border: "1px solid #ffcdd2" }}>
         <div>🔒 INTERNAL ADMIN VIEW (Contains Private Info)</div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {whatsappSent ? <Pill>WhatsApp Sent</Pill> : <Pill tone="warn">WhatsApp Not Sent</Pill>}
@@ -309,52 +248,17 @@ function ResumeContent() {
       </div>
 
       <div className="no-print" style={{ marginBottom: 22, display: "flex", gap: 10 }}>
-        <button
-          onClick={() => window.print()}
-          style={{
-            padding: "8px 14px",
-            cursor: "pointer",
-            fontWeight: 900,
-            border: "1px solid #ddd",
-            borderRadius: 8,
-            background: "#fff",
-          }}
-        >
+        <button onClick={() => window.print()} style={{ padding: "8px 14px", cursor: "pointer", fontWeight: 900, border: "1px solid #ddd", borderRadius: 8, background: "#fff" }}>
           🖨️ Print Admin Copy
         </button>
       </div>
 
-      {/* HEADER */}
       <div style={{ display: "flex", gap: 24, marginBottom: 26, alignItems: "flex-start" }}>
-        <div
-          style={{
-            width: 160,
-            height: 160,
-            borderRadius: 14,
-            overflow: "hidden",
-            background: "#f5f5f5",
-            border: "1px solid #eee",
-            flexShrink: 0,
-          }}
-        >
+        <div style={{ width: 160, height: 160, borderRadius: 14, overflow: "hidden", background: "#f5f5f5", border: "1px solid #eee", flexShrink: 0 }}>
           {photoUrl ? (
-            <img
-              src={photoUrl}
-              alt="Profile"
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
+            <img src={photoUrl} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           ) : (
-            <div
-              style={{
-                width: "100%",
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#999",
-                fontWeight: 800,
-              }}
-            >
+            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#999", fontWeight: 800 }}>
               No Photo
             </div>
           )}
@@ -380,11 +284,7 @@ function ResumeContent() {
             </div>
             <div>
               🎂 DOB: {dobDisplay ?? "—"}
-              {age !== null ? (
-                <span style={{ marginLeft: 8, fontWeight: 900, color: "#c62828" }}>
-                  • {age} years old
-                </span>
-              ) : null}
+              {age !== null ? <span style={{ marginLeft: 8, fontWeight: 900, color: "#c62828" }}>• {age} years old</span> : null}
             </div>
             <div>🗣️ Languages: {data["My languages"] ?? "—"}</div>
             <div>💼 Occupation: {data["My Occupation"] ?? "—"}</div>
@@ -392,7 +292,6 @@ function ResumeContent() {
         </div>
       </div>
 
-      {/* ADMIN LINKS */}
       <Section title="Admin Links">
         <TwoCol
           left={
@@ -410,7 +309,6 @@ function ResumeContent() {
         />
       </Section>
 
-      {/* PERSONAL & FAMILY */}
       <Section title="Personal & Family">
         <TwoCol
           left={
@@ -431,7 +329,6 @@ function ResumeContent() {
         />
       </Section>
 
-      {/* WORK & LANGUAGES */}
       <Section title="Work & Languages">
         <TwoCol
           left={
@@ -449,7 +346,6 @@ function ResumeContent() {
         />
       </Section>
 
-      {/* PREFERENCES */}
       <Section title="Relationship Preferences">
         <TwoCol
           left={
@@ -468,19 +364,8 @@ function ResumeContent() {
         />
       </Section>
 
-      {/* CONTACT INFO */}
       <Section title="🔒 Contact Info (Admin Only)">
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 16,
-            background: "#fff8e1",
-            padding: 15,
-            borderRadius: 10,
-            border: "1px solid #ffe082",
-          }}
-        >
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, background: "#fff8e1", padding: 15, borderRadius: 10, border: "1px solid #ffe082" }}>
           <div>
             <Detail label="Phone" value={data["Phone"]} />
             <Detail label="Email" value={data["Email"]} />
@@ -492,58 +377,29 @@ function ResumeContent() {
         </div>
       </Section>
 
-      {/* PHOTO SOURCE (if exists) */}
       <Section title="Photo Info">
         <TwoCol
-          left={
-            <>
-              <Detail label="Photo Path" value={data.photo_path} />
-            </>
-          }
-          right={
-            <>
-              <LinkRow label="Photo Source URL" href={data.photo_source_url} />
-            </>
-          }
+          left={<Detail label="Photo Path" value={data.photo_path} />}
+          right={<LinkRow label="Photo Source URL" href={data.photo_source_url} />}
         />
       </Section>
 
-      {/* ABOUT ME */}
       <Section title="About Me">
-        <p
-          dir={detectDir(aboutMe)}
-          style={{
-            whiteSpace: "pre-wrap",
-            marginTop: 0,
-            lineHeight: 1.7,
-            textAlign: detectDir(aboutMe) === "rtl" ? "right" : "left",
-          }}
-        >
+        <p dir={detectDir(aboutMe)} style={{ whiteSpace: "pre-wrap", marginTop: 0, lineHeight: 1.7, textAlign: detectDir(aboutMe) === "rtl" ? "right" : "left" }}>
           {aboutMe}
         </p>
       </Section>
 
-      {/* ABOUT THEM */}
       <Section title="Looking For (About Them)">
-        <p
-          dir={detectDir(aboutThem)}
-          style={{
-            whiteSpace: "pre-wrap",
-            marginTop: 0,
-            lineHeight: 1.7,
-            textAlign: detectDir(aboutThem) === "rtl" ? "right" : "left",
-          }}
-        >
+        <p dir={detectDir(aboutThem)} style={{ whiteSpace: "pre-wrap", marginTop: 0, lineHeight: 1.7, textAlign: detectDir(aboutThem) === "rtl" ? "right" : "left" }}>
           {aboutThem}
         </p>
       </Section>
 
-      {/* REFERENCES */}
       <Section title="Full References">
         <p style={{ whiteSpace: "pre-wrap", marginTop: 0, lineHeight: 1.7 }}>{refs}</p>
       </Section>
 
-      {/* AI EXTRACTION (for debugging/admin) */}
       <Section title="AI Age Fields (Debug)">
         <TwoCol
           left={
@@ -565,17 +421,8 @@ function ResumeContent() {
         />
       </Section>
 
-      {/* RAW DUMP SAFETY NET */}
       <Section title="Raw Profile Data (Admin)">
-        <div
-          style={{
-            fontSize: 13,
-            background: "#fafafa",
-            border: "1px solid #eee",
-            borderRadius: 10,
-            padding: 12,
-          }}
-        >
+        <div style={{ fontSize: 13, background: "#fafafa", border: "1px solid #eee", borderRadius: 10, padding: 12 }}>
           {rawEntries.map(([k, v]) => (
             <Detail key={k} label={k} value={v} />
           ))}
